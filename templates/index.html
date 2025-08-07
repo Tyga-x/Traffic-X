@@ -622,6 +622,140 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        
+        /* Result Page Styles */
+        .result-container {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--card-border);
+            max-width: 600px;
+            margin: 2rem auto;
+        }
+        
+        .result-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .result-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .result-subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+        
+        .result-item {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: rgba(55, 65, 81, 0.3);
+            border-radius: 12px;
+            transition: var(--transition);
+        }
+        
+        .result-item:hover {
+            background: rgba(55, 65, 81, 0.5);
+            transform: translateY(-3px);
+        }
+        
+        .result-label {
+            font-size: 0.875rem;
+            color: var(--text-tertiary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .result-value {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            background: rgba(55, 65, 81, 0.3);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            transition: var(--transition);
+        }
+        
+        .toggle-container:hover {
+            background: rgba(55, 65, 81, 0.5);
+        }
+        
+        .toggle-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .toggle {
+            width: 50px;
+            height: 26px;
+            background: rgba(55, 65, 81, 0.5);
+            border-radius: 13px;
+            position: relative;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        
+        .toggle:before {
+            content: "";
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: var(--transition);
+        }
+        
+        .toggle.active {
+            background: var(--success-color);
+        }
+        
+        .toggle.active:before {
+            left: 26px;
+        }
+        
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+            padding: 0.75rem 1.5rem;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary-color);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        
+        .back-button:hover {
+            background: rgba(99, 102, 241, 0.2);
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
