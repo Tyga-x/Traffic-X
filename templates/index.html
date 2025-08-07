@@ -3,385 +3,791 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traffic X - Server Usage Checker</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Chart.js for Data Visualization -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+    <title>Traffic-X Dashboard</title>
     <!-- Feather Icons -->
     <script src="https://unpkg.com/feather-icons"></script>
-    
-    <!-- Custom Tailwind Config -->
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            50: '#f0f9ff',
-                            100: '#e0f2fe',
-                            200: '#bae6fd',
-                            300: '#7dd3fc',
-                            400: '#38bdf8',
-                            500: '#0ea5e9',
-                            600: '#0284c7',
-                            700: '#0369a1',
-                            800: '#075985',
-                            900: '#0c4a6e',
-                        },
-                        accent: {
-                            500: '#8b5cf6',
-                            600: '#7c3aed',
-                            700: '#6d28d9',
-                        }
-                    },
-                    animation: {
-                        'fade-in': 'fadeIn 0.5s ease-in-out',
-                        'slide-up': 'slideUp 0.5s ease-out',
-                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    },
-                    keyframes: {
-                        fadeIn: {
-                            '0%': { opacity: '0' },
-                            '100%': { opacity: '1' },
-                        },
-                        slideUp: {
-                            '0%': { transform: 'translateY(10px)', opacity: '0' },
-                            '100%': { transform: 'translateY(0)', opacity: '1' },
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    
     <style>
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+        /* Import modern font */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        /* CSS Variables for dark theme */
+        :root {
+            --primary-color: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #818cf8;
+            --secondary-color: #8b5cf6;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --text-primary: #f9fafb;
+            --text-secondary: #d1d5db;
+            --text-tertiary: #9ca3af;
+            --bg-primary: #111827;
+            --bg-secondary: #1f2937;
+            --bg-tertiary: #374151;
+            --card-bg: rgba(31, 41, 55, 0.7);
+            --card-border: rgba(75, 85, 99, 0.3);
+            --input-bg: rgba(55, 65, 81, 0.7);
+            --input-border: rgba(75, 85, 99, 0.5);
+            --progress-bg: rgba(55, 65, 81, 0.5);
+            --footer-bg: rgba(17, 24, 39, 0.5);
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --glass-border: rgba(255, 255, 255, 0.1);
         }
         
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         
-        ::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 4px;
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e293b, #0f172a);
+            background-size: 300% 300%;
+            animation: gradientAnimation 15s ease infinite;
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow-x: hidden;
         }
         
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-        
-        .dark ::-webkit-scrollbar-track {
-            background: #1f2937;
-        }
-        
-        .dark ::-webkit-scrollbar-thumb {
-            background: #4b5563;
+        /* Background animation */
+        @keyframes gradientAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
         
         /* Glassmorphism effect */
-        .glass {
-            background: rgba(255, 255, 255, 0.1);
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1), transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.1), transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(16, 185, 129, 0.05), transparent 50%);
+            z-index: -1;
+        }
+        
+        /* Header Styling */
+        header {
+            background: rgba(17, 24, 39, 0.8);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-bottom: 1px solid var(--glass-border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            transition: var(--transition);
         }
         
-        .dark .glass {
-            background: rgba(30, 41, 59, 0.6);
-            border: 1px solid rgba(100, 116, 139, 0.3);
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
-        /* Progress bar animation */
-        .progress-bar {
-            transition: width 1.5s ease-in-out;
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
         
-        /* Chart container */
-        .chart-container {
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            transition: var(--transition);
+        }
+        
+        .logo:hover .logo-icon {
+            transform: rotate(15deg) scale(1.05);
+        }
+        
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .tagline {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+        
+        /* Main Content */
+        main {
+            flex: 1;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        
+        /* Section Title */
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
             position: relative;
-            height: 250px;
+        }
+        
+        .section-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -5px;
+            width: 40px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            border-radius: 3px;
+        }
+        
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--card-border);
+            margin-bottom: 1.5rem;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary-color);
+            transition: var(--transition);
+        }
+        
+        .card:hover .card-icon {
+            transform: scale(1.1);
+            background: rgba(99, 102, 241, 0.2);
+        }
+        
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        
+        input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            font-size: 1rem;
+            color: var(--text-primary);
+            transition: var(--transition);
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        button {
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(-100%);
+            transition: transform 0.5s ease;
+        }
+        
+        button:hover::before {
+            transform: translateX(0);
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(-1px);
+        }
+        
+        button.success {
+            background: linear-gradient(135deg, var(--success-color), #34d399);
+        }
+        
+        button.success:hover {
+            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+        }
+        
+        /* Resource Items */
+        .resource-item {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            border-radius: 12px;
+            background: rgba(55, 65, 81, 0.3);
+            transition: var(--transition);
+        }
+        
+        .resource-item:hover {
+            background: rgba(55, 65, 81, 0.5);
+            transform: translateX(5px);
+        }
+        
+        .resource-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .resource-name {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .resource-value {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        /* Server Info */
+        .server-info {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: rgba(55, 65, 81, 0.3);
+            border-radius: 12px;
+            transition: var(--transition);
+        }
+        
+        .info-item:hover {
+            background: rgba(55, 65, 81, 0.5);
+            transform: translateX(5px);
+        }
+        
+        .info-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary-color);
+            transition: var(--transition);
+        }
+        
+        .info-item:hover .info-icon {
+            transform: scale(1.1);
+            background: rgba(99, 102, 241, 0.2);
+        }
+        
+        .info-content {
+            flex: 1;
+        }
+        
+        .info-label {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+        }
+        
+        .info-value {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-weight: 500;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--success-color);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        
+        /* Progress Bars */
+        .progress-container {
+            height: 8px;
+            background-color: var(--progress-bg);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .progress-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 1.5s ease-in-out;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
+            animation: progressShine 2s infinite;
+        }
+        
+        @keyframes progressShine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .progress-bar.primary {
+            background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+        }
+        
+        .progress-bar.success {
+            background: linear-gradient(90deg, var(--success-color), #6ee7b7);
+        }
+        
+        .progress-bar.warning {
+            background: linear-gradient(90deg, var(--warning-color), #fcd34d);
+        }
+        
+        .progress-bar.danger {
+            background: linear-gradient(90deg, var(--danger-color), #fca5a5);
+        }
+        
+        /* Two Column Layout */
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        
+        /* Footer */
+        footer {
+            background: var(--footer-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-top: 1px solid var(--glass-border);
+            padding: 1.5rem 0;
+            margin-top: auto;
+            position: relative;
+        }
+        
+        footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        }
+        
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .copyright {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .social-links {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .social-link {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(55, 65, 81, 0.5);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .social-link::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: translate(-50%, -50%);
+            transition: width 0.5s ease, height 0.5s ease;
+        }
+        
+        .social-link:hover::before {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .social-link:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .logo {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .tagline {
+                display: none;
+            }
+            
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+            
+            .footer-content {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+        }
+        
+        /* Loading Animation */
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+<body>
     <!-- Header -->
-    <header class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50 transition-colors duration-300">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-lg bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center">
-                    <i data-feather="activity" class="w-6 h-6 text-white"></i>
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">
+                    <i data-feather="activity" class="w-6 h-6"></i>
                 </div>
-                <h1 class="text-xl md:text-2xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">Traffic X</h1>
-            </div>
-            
-            <div class="flex items-center space-x-4">
-                <nav class="hidden md:flex space-x-6">
-                    <a href="#" class="text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">Dashboard</a>
-                    <a href="#" class="text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">Servers</a>
-                    <a href="#" class="text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">Settings</a>
-                </nav>
-                
-                <!-- Dark mode toggle -->
-                <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                    <i data-feather="sun" class="w-5 h-5 hidden dark:block"></i>
-                    <i data-feather="moon" class="w-5 h-5 block dark:hidden"></i>
-                </button>
-                
-                <!-- Mobile menu button -->
-                <button id="mobile-menu-button" class="md:hidden p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                    <i data-feather="menu" class="w-5 h-5"></i>
-                </button>
-            </div>
-        </div>
-        
-        <!-- Mobile menu -->
-        <div id="mobile-menu" class="hidden md:hidden bg-white dark:bg-gray-800 border-t dark:border-gray-700">
-            <div class="container mx-auto px-4 py-3 flex flex-col space-y-3">
-                <a href="#" class="text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">Dashboard</a>
-                <a href="#" class="text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">Servers</a>
-                <a href="#" class="text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">Settings</a>
+                <div>
+                    <div class="logo-text">Traffic-X</div>
+                    <div class="tagline">Server Usage Monitor</div>
+                </div>
             </div>
         </div>
     </header>
 
     <!-- Main Content -->
-    <main class="container mx-auto px-4 py-8">
-        <!-- Stats Overview -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow animate-fade-in">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-gray-500 dark:text-gray-400 text-sm mb-1">Total Usage</p>
-                        <p class="text-2xl font-bold">1.2 TB</p>
+    <main>
+        <!-- User Details Section -->
+        <div class="section-title">
+            <i data-feather="user" class="w-5 h-5"></i>
+            User Details
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon">
+                        <i data-feather="user" class="w-5 h-5"></i>
                     </div>
-                    <div class="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                        <i data-feather="database" class="w-6 h-6 text-blue-500 dark:text-blue-400"></i>
-                    </div>
-                </div>
-                <div class="mt-4">
-                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div class="bg-blue-500 h-2 rounded-full progress-bar" style="width: 65%"></div>
-                    </div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">65% of 2 TB limit</p>
+                    Enter User Information
                 </div>
             </div>
-            
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow animate-fade-in" style="animation-delay: 0.1s">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-gray-500 dark:text-gray-400 text-sm mb-1">Remaining Data</p>
-                        <p class="text-2xl font-bold">800 GB</p>
-                    </div>
-                    <div class="p-3 rounded-lg bg-green-100 dark:bg-green-900/30">
-                        <i data-feather="hard-drive" class="w-6 h-6 text-green-500 dark:text-green-400"></i>
-                    </div>
+            <form id="user-form" action="/usage" method="POST">
+                <div class="form-group">
+                    <label for="user_input">User Name</label>
+                    <input type="text" id="user_input" name="user_input" placeholder="Enter User Name" required>
                 </div>
-                <div class="mt-4">
-                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div class="bg-green-500 h-2 rounded-full progress-bar" style="width: 35%"></div>
-                    </div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">~15 days left</p>
-                </div>
-            </div>
-            
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow animate-fade-in" style="animation-delay: 0.2s">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-gray-500 dark:text-gray-400 text-sm mb-1">Expiration Date</p>
-                        <p class="text-2xl font-bold">Jun 15, 2025</p>
-                    </div>
-                    <div class="p-3 rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                        <i data-feather="calendar" class="w-6 h-6 text-purple-500 dark:text-purple-400"></i>
-                    </div>
-                </div>
-                <div class="mt-4">
-                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div class="bg-purple-500 h-2 rounded-full progress-bar" style="width: 40%"></div>
-                    </div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">40% of period passed</p>
-                </div>
-            </div>
-            
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow animate-fade-in" style="animation-delay: 0.3s">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-gray-500 dark:text-gray-400 text-sm mb-1">Server Status</p>
-                        <p class="text-2xl font-bold">Online</p>
-                    </div>
-                    <div class="p-3 rounded-lg bg-green-100 dark:bg-green-900/30">
-                        <div class="w-6 h-6 flex items-center justify-center">
-                            <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse-slow"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="mt-4">
-                    <div class="flex items-center text-sm">
-                        <i data-feather="map-pin" class="w-4 h-4 mr-1 text-gray-500 dark:text-gray-400"></i>
-                        <span class="text-gray-600 dark:text-gray-300">New York, USA</span>
-                    </div>
-                </div>
-            </div>
+                <button type="submit">
+                    <i data-feather="search" class="w-4 h-4"></i>
+                    Check Usage
+                </button>
+            </form>
         </div>
 
-        <!-- User Information and Server Details -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <!-- User Information -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 animate-slide-up">
-                <h2 class="text-xl font-bold mb-4 flex items-center">
-                    <i data-feather="user" class="w-5 h-5 mr-2 text-primary-600 dark:text-primary-400"></i>
-                    User Information
-                </h2>
+        <!-- Server Resources and Information -->
+        <div class="two-column">
+            <!-- Server Resources -->
+            <div>
+                <div class="section-title">
+                    <i data-feather="cpu" class="w-5 h-5"></i>
+                    Server Resources
+                </div>
                 
-                <form id="user-form" action="/usage" method="POST" class="mb-6">
-                    <div class="mb-4">
-                        <label for="user_input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Enter User Name</label>
-                        <div class="flex">
-                            <input type="text" id="user_input" name="user_input" placeholder="Enter User Name" required
-                                class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-l-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white">
-                            <button type="submit" 
-                                class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-r-lg transition-colors">
-                                Check Usage
-                            </button>
+                <div class="card">
+                    <div class="resource-item">
+                        <div class="resource-header">
+                            <div class="resource-name">
+                                <i data-feather="cpu" class="w-4 h-4"></i>
+                                CPU Usage
+                            </div>
+                            <div class="resource-value" id="cpu-usage">25%</div>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-bar primary" id="cpu-progress" style="width: 25%"></div>
                         </div>
                     </div>
-                </form>
-                
-                <div class="space-y-4">
-                    <div class="flex justify-between items-center pb-3 border-b border-gray-200 dark:border-gray-700">
-                        <span class="text-gray-600 dark:text-gray-400">UUID</span>
-                        <span class="font-mono text-sm bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">550e8400-e29b-41d4-a716-446655440000</span>
+                    
+                    <div class="resource-item">
+                        <div class="resource-header">
+                            <div class="resource-name">
+                                <i data-feather="hard-drive" class="w-4 h-4"></i>
+                                Memory Usage
+                            </div>
+                            <div class="resource-value" id="memory-usage">4 GB / 16 GB (25%)</div>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-bar success" id="memory-progress" style="width: 25%"></div>
+                        </div>
                     </div>
                     
-                    <div class="flex justify-between items-center pb-3 border-b border-gray-200 dark:border-gray-700">
-                        <span class="text-gray-600 dark:text-gray-400">Server IP</span>
-                        <span class="font-mono">192.168.1.1</span>
-                    </div>
-                    
-                    <div class="flex justify-between items-center pb-3 border-b border-gray-200 dark:border-gray-700">
-                        <span class="text-gray-600 dark:text-gray-400">Port</span>
-                        <span class="font-mono">443</span>
-                    </div>
-                    
-                    <div class="flex justify-between items-center">
-                        <span class="text-gray-600 dark:text-gray-400">Protocol</span>
-                        <span class="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full text-xs font-medium">VLESS</span>
+                    <div class="resource-item">
+                        <div class="resource-header">
+                            <div class="resource-name">
+                                <i data-feather="database" class="w-4 h-4"></i>
+                                Disk Usage
+                            </div>
+                            <div class="resource-value" id="disk-usage">50 GB / 200 GB (25%)</div>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-bar warning" id="disk-progress" style="width: 25%"></div>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Server Resources -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 animate-slide-up" style="animation-delay: 0.1s">
-                <h2 class="text-xl font-bold mb-4 flex items-center">
-                    <i data-feather="server" class="w-5 h-5 mr-2 text-primary-600 dark:text-primary-400"></i>
-                    Server Resources
-                </h2>
+            <!-- Server Information -->
+            <div>
+                <div class="section-title">
+                    <i data-feather="info" class="w-5 h-5"></i>
+                    Server Information
+                </div>
                 
-                <div class="space-y-5">
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <span class="text-gray-600 dark:text-gray-400 flex items-center">
-                                <i data-feather="cpu" class="w-4 h-4 mr-1"></i> CPU Usage
-                            </span>
-                            <span id="cpu-usage" class="font-medium">25%</span>
-                        </div>
-                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                            <div id="cpu-progress" class="bg-blue-500 h-2.5 rounded-full progress-bar" style="width: 25%"></div>
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <span class="text-gray-600 dark:text-gray-400 flex items-center">
-                                <i data-feather="hard-drive" class="w-4 h-4 mr-1"></i> Memory Usage
-                            </span>
-                            <span id="memory-usage" class="font-medium">4 GB / 16 GB (25%)</span>
-                        </div>
-                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                            <div id="memory-progress" class="bg-green-500 h-2.5 rounded-full progress-bar" style="width: 25%"></div>
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <span class="text-gray-600 dark:text-gray-400 flex items-center">
-                                <i data-feather="database" class="w-4 h-4 mr-1"></i> Disk Usage
-                            </span>
-                            <span id="disk-usage" class="font-medium">50 GB / 200 GB (25%)</span>
-                        </div>
-                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                            <div id="disk-progress" class="bg-purple-500 h-2.5 rounded-full progress-bar" style="width: 25%"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="pt-4">
-                        <button id="ping-button" class="w-full py-2 px-4 bg-gradient-to-r from-primary-600 to-accent-600 hover:from-primary-700 hover:to-accent-700 text-white font-medium rounded-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center">
-                            <i data-feather="wifi" class="w-4 h-4 mr-2"></i>
+                <div class="card">
+                    <div class="server-info">
+                        <button class="success" id="ping-button">
+                            <i data-feather="wifi" class="w-4 h-4"></i>
                             Ping Server
                         </button>
                         
-                        <div id="ping-result" class="mt-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-center">
-                            <span class="text-gray-600 dark:text-gray-300">Ping: -</span>
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i data-feather="activity" class="w-5 h-5"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Ping Result</div>
+                                <div class="info-value" id="ping-result">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i data-feather="map-pin" class="w-5 h-5"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Server Location</div>
+                                <div class="info-value" id="server-location">New York, USA</div>
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i data-feather="wifi" class="w-5 h-5"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Server Status</div>
+                                <div class="info-value">
+                                    <div class="status-indicator">
+                                        <div class="status-dot"></div>
+                                        <span id="server-status">Online</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Traffic Usage Chart -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 animate-slide-up" style="animation-delay: 0.2s">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-                <h2 class="text-xl font-bold flex items-center">
-                    <i data-feather="bar-chart-2" class="w-5 h-5 mr-2 text-primary-600 dark:text-primary-400"></i>
-                    Traffic Usage Analytics
-                </h2>
-                
-                <div class="flex space-x-2 mt-2 md:mt-0">
-                    <button class="px-3 py-1 text-sm bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-lg font-medium">Daily</button>
-                    <button class="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium">Weekly</button>
-                    <button class="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium">Monthly</button>
-                </div>
-            </div>
-            
-            <div class="chart-container">
-                <canvas id="trafficChart"></canvas>
             </div>
         </div>
     </main>
 
     <!-- Footer -->
-    <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 py-8 transition-colors duration-300">
-        <div class="container mx-auto px-4">
-            <div class="flex flex-col md:flex-row justify-between items-center">
-                <div class="mb-4 md:mb-0">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-8 rounded-lg bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center">
-                            <i data-feather="activity" class="w-4 h-4 text-white"></i>
-                        </div>
-                        <span class="text-lg font-bold">Traffic X</span>
-                    </div>
-                    <p class="text-gray-600 dark:text-gray-400 text-sm mt-1">© 2025 Traffic X. All rights reserved.</p>
-                </div>
-                
-                <div class="flex space-x-4">
-                    <a href="https://www.tiktok.com/" target="_blank" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors">
-                        <i data-feather="music" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
-                    </a>
-                    <a href="https://t.me/Xray_SL" target="_blank" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors">
-                        <i data-feather="send" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
-                    </a>
-                    <a href="https://www.youtube.com/" target="_blank" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors">
-                        <i data-feather="youtube" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
-                    </a>
-                </div>
+    <footer>
+        <div class="footer-content">
+            <div class="copyright">&copy; 2025 Traffic-X. All rights reserved.</div>
+            <div class="social-links">
+                <a href="https://www.tiktok.com/" target="_blank" class="social-link" aria-label="TikTok">
+                    <i data-feather="music" class="w-5 h-5"></i>
+                </a>
+                <a href="https://t.me/Xray_SL" target="_blank" class="social-link" aria-label="Telegram">
+                    <i data-feather="send" class="w-5 h-5"></i>
+                </a>
+                <a href="https://www.youtube.com/" target="_blank" class="social-link" aria-label="YouTube">
+                    <i data-feather="youtube" class="w-5 h-5"></i>
+                </a>
             </div>
         </div>
     </footer>
@@ -390,129 +796,22 @@
         // Initialize Feather Icons
         feather.replace();
         
-        // Theme Toggle
-        const themeToggle = document.getElementById('theme-toggle');
-        const htmlElement = document.documentElement;
-        
-        // Check for saved theme preference or default to light mode
-        const currentTheme = localStorage.getItem('theme') || 'light';
-        if (currentTheme === 'dark') {
-            htmlElement.classList.add('dark');
-        }
-        
-        themeToggle.addEventListener('click', () => {
-            htmlElement.classList.toggle('dark');
-            const theme = htmlElement.classList.contains('dark') ? 'dark' : 'light';
-            localStorage.setItem('theme', theme);
-        });
-        
-        // Mobile Menu Toggle
-        const mobileMenuButton = document.getElementById('mobile-menu-button');
-        const mobileMenu = document.getElementById('mobile-menu');
-        
-        mobileMenuButton.addEventListener('click', () => {
-            mobileMenu.classList.toggle('hidden');
-        });
-        
-        // Initialize Traffic Chart
-        const ctx = document.getElementById('trafficChart').getContext('2d');
-        const trafficChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                datasets: [{
-                    label: 'Upload (GB)',
-                    data: [12, 19, 15, 25, 22, 30, 28],
-                    borderColor: '#8b5cf6',
-                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }, {
-                    label: 'Download (GB)',
-                    data: [20, 25, 22, 30, 28, 35, 32],
-                    borderColor: '#0ea5e9',
-                    backgroundColor: 'rgba(14, 165, 233, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: {
-                            usePointStyle: true,
-                            color: htmlElement.classList.contains('dark') ? '#e5e7eb' : '#4b5563'
-                        }
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        backgroundColor: htmlElement.classList.contains('dark') ? '#1f2937' : '#ffffff',
-                        titleColor: htmlElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937',
-                        bodyColor: htmlElement.classList.contains('dark') ? '#d1d5db' : '#4b5563',
-                        borderColor: htmlElement.classList.contains('dark') ? '#374151' : '#e5e7eb',
-                        borderWidth: 1
-                    }
-                },
-                scales: {
-                    x: {
-                        grid: {
-                            color: htmlElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
-                        },
-                        ticks: {
-                            color: htmlElement.classList.contains('dark') ? '#9ca3af' : '#6b7280'
-                        }
-                    },
-                    y: {
-                        grid: {
-                            color: htmlElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
-                        },
-                        ticks: {
-                            color: htmlElement.classList.contains('dark') ? '#9ca3af' : '#6b7280'
-                        }
-                    }
-                }
-            }
-        });
-        
-        // Update chart colors when theme changes
-        themeToggle.addEventListener('click', () => {
-            const isDark = htmlElement.classList.contains('dark');
-            
-            trafficChart.options.plugins.legend.labels.color = isDark ? '#e5e7eb' : '#4b5563';
-            trafficChart.options.plugins.tooltip.backgroundColor = isDark ? '#1f2937' : '#ffffff';
-            trafficChart.options.plugins.tooltip.titleColor = isDark ? '#f3f4f6' : '#1f2937';
-            trafficChart.options.plugins.tooltip.bodyColor = isDark ? '#d1d5db' : '#4b5563';
-            trafficChart.options.plugins.tooltip.borderColor = isDark ? '#374151' : '#e5e7eb';
-            
-            trafficChart.options.scales.x.grid.color = isDark ? '#374151' : '#e5e7eb';
-            trafficChart.options.scales.x.ticks.color = isDark ? '#9ca3af' : '#6b7280';
-            trafficChart.options.scales.y.grid.color = isDark ? '#374151' : '#e5e7eb';
-            trafficChart.options.scales.y.ticks.color = isDark ? '#9ca3af' : '#6b7280';
-            
-            trafficChart.update();
-        });
-        
         // Real-Time Ping Tool
         const pingButton = document.getElementById("ping-button");
         const pingResult = document.getElementById("ping-result");
         
         pingButton.addEventListener("click", async () => {
             const originalText = pingButton.innerHTML;
-            pingButton.innerHTML = '<i data-feather="loader" class="w-4 h-4 mr-2 animate-spin"></i>Pinging...';
-            feather.replace();
+            pingButton.innerHTML = '<div class="loading"></div> Pinging...';
             
             try {
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                const pingTime = Math.floor(Math.random() * 100) + 20; // Random ping between 20-120ms
-                
-                pingResult.innerHTML = `<span class="text-green-600 dark:text-green-400 font-medium">Ping: ${pingTime} ms</span>`;
+                const startTime = Date.now();
+                const response = await fetch("/ping");
+                const endTime = Date.now();
+                const pingTime = endTime - startTime;
+                pingResult.textContent = `${pingTime} ms`;
             } catch (error) {
-                pingResult.innerHTML = '<span class="text-red-600 dark:text-red-400 font-medium">Ping failed</span>';
+                pingResult.textContent = "Ping failed";
             } finally {
                 pingButton.innerHTML = originalText;
                 feather.replace();
@@ -522,49 +821,52 @@
         // Function to Determine Progress Bar Color
         function getProgressColor(percentage) {
             if (percentage <= 50) {
-                return "#10b981"; // Green for low usage
+                return "primary"; // Green for low usage
             } else if (percentage > 50 && percentage <= 80) {
-                return "#f59e0b"; // Orange for medium usage
+                return "warning"; // Orange for medium usage
             } else {
-                return "#ef4444"; // Red for high usage
+                return "danger"; // Red for high usage
             }
         }
         
         // Real-Time Server Resource Updates
         setInterval(async () => {
             try {
-                // Simulate API call
-                const data = {
-                    cpu: Math.floor(Math.random() * 100),
-                    ram: Math.floor(Math.random() * 100),
-                    disk: Math.floor(Math.random() * 100)
-                };
+                const response = await fetch("/server-status");
+                const data = await response.json();
                 
                 // Update CPU Usage
                 document.getElementById("cpu-usage").textContent = `${data.cpu}%`;
                 const cpuProgress = document.getElementById("cpu-progress");
                 cpuProgress.style.width = `${data.cpu}%`;
-                cpuProgress.style.backgroundColor = getProgressColor(data.cpu);
+                cpuProgress.className = `progress-bar ${getProgressColor(data.cpu)}`;
                 
                 // Update Memory Usage
-                const totalRam = 16;
-                const usedRam = (totalRam * data.cpu / 100).toFixed(1);
-                document.getElementById("memory-usage").textContent = `${usedRam} GB / ${totalRam} GB (${data.cpu}%)`;
+                document.getElementById("memory-usage").textContent = `${data.ram}%`;
                 const memoryProgress = document.getElementById("memory-progress");
-                memoryProgress.style.width = `${data.cpu}%`;
-                memoryProgress.style.backgroundColor = getProgressColor(data.cpu);
+                memoryProgress.style.width = `${data.ram}%`;
+                memoryProgress.className = `progress-bar ${getProgressColor(data.ram)}`;
                 
                 // Update Disk Usage
-                const totalDisk = 200;
-                const usedDisk = (totalDisk * data.disk / 100).toFixed(0);
-                document.getElementById("disk-usage").textContent = `${usedDisk} GB / ${totalDisk} GB (${data.disk}%)`;
+                document.getElementById("disk-usage").textContent = `${data.disk}%`;
                 const diskProgress = document.getElementById("disk-progress");
                 diskProgress.style.width = `${data.disk}%`;
-                diskProgress.style.backgroundColor = getProgressColor(data.disk);
+                diskProgress.className = `progress-bar ${getProgressColor(data.disk)}`;
             } catch (error) {
                 console.error("Error fetching server status:", error);
             }
-        }, 3000);
+        }, 1000);
+        
+        // Fetch Server Location
+        (async () => {
+            try {
+                const response = await fetch("/server-location");
+                const data = await response.json();
+                document.getElementById("server-location").textContent = `${data.city}, ${data.country}`;
+            } catch (error) {
+                console.error("Error fetching server location:", error);
+            }
+        })();
     </script>
 </body>
 </html>
