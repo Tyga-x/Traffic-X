@@ -323,7 +323,7 @@
     // ===== Charts (ApexCharts) =====
     // Summary (columns for Upload/Download + line for Remaining)
     const summaryOptions = {
-      chart: { type: 'line', height: 260, foreColor:'#fff' },
+      chart: { type: 'line', height: 260, foreColor:'#fff', toolbar: { show: false } },
       stroke: { width: [0, 0, 3] },
       series: [
         { name:'Uploaded',  type:'column', data:[upMB] },
@@ -345,7 +345,7 @@
 
     // Donut Breakdown (Up vs Down)
     const breakdownOptions = {
-      chart: { type:'donut', height:220, foreColor:'#fff' },
+      chart: { type:'donut', height:220, foreColor:'#fff', toolbar: { show: false } },
       series: [ upMB, downMB ],
       labels: ['Upload','Download'],
       colors: ['#29B6F6','#AB47BC'],
@@ -365,7 +365,7 @@
       pct = clamp( (1 - (dLeft/30))*100 , 0, 100); // nearer expiry => higher %
     }
     const gaugeOptions = {
-      chart: { type:'radialBar', height:220, foreColor:'#fff' },
+      chart: { type:'radialBar', height:220, foreColor:'#fff', toolbar: { show: false } },
       series: [ pct ],
       labels: ['Proximity to Expiry'],
       colors: [ pct<60 ? '#7CB342' : (pct<85 ? '#FFC107' : '#EF5350') ],
