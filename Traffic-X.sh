@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
+# =============================================================================
 # Traffic-X universal installer / manager bootstrap
-# Ubuntu 20.04/22.04/24.04. No 80/443 required (DNS-01 or self-signed).
+# Ubuntu 20.04/22.04/24.04
+# SSL: Let's Encrypt via HTTP-01 (port 80, standalone). No Cloudflare token.
 # Installs global command: checker-x
 # Author: x404 MASTER™ (adapted) | License: MIT
+# =============================================================================
 set -euo pipefail
 
-# ---------- Colors ----------
+# ========== [Section] Colors & Messages ======================================
 RED='\033[1;31m'; GREEN='\033[1;32m'; YELLOW='\033[1;33m'; BLUE='\033[1;34m'; CYAN='\033[1;36m'; NC='\033[0m'
 info(){ echo -e "${CYAN}[INFO]${NC} $*"; }
 ok(){ echo -e "${GREEN}[OK]${NC}  $*"; }
@@ -13,7 +16,7 @@ warn(){ echo -e "${YELLOW}[WARN]${NC} $*"; }
 err(){ echo -e "${RED}[ERR]${NC}  $*"; }
 die(){ err "$*"; exit 1; }
 
-# ---------- Globals ----------
+# ========== [Section] Globals ================================================
 SERVICE_NAME="traffic-x"
 SERVICE_USER="trafficx"
 SERVICE_HOME="/home/${SERVICE_USER}"
@@ -23,9 +26,8 @@ CERT_DIR="/var/lib/Traffic-X/certs"
 DB_PATH="/etc/x-ui/x-ui.db"
 UNIT_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 REPO_HEAD_ZIP="https://github.com/Tyga-x/Traffic-X/archive/refs/heads/main.zip"
-CF_ALLOWED_HTTPS_PORTS="443, 2053, 2083, 2087, 2096, 8443"
 
-# ---------- Sanity ----------
+# ========== [Section] Sanity Checks ==========================================
 require_root(){ [[ $EUID -eq 0 ]] || die "Run as root (sudo)."; command -v systemctl >/dev/null || die "systemd required."; }
 ensure_ubuntu(){
   if ! command -v lsb_release >/dev/null 2>&1; then apt-get update -y && apt-get install -y lsb-release; fi
@@ -33,7 +35,7 @@ ensure_ubuntu(){
   [[ "$dist" == "Ubuntu" ]] || warn "Detected $dist. Script targets Ubuntu; continuing."
 }
 
-# ---------- Helpers ----------
+# ========== [Section] Helper Functions =======================================
 fresh_cleanup(){
   info "Stopping & removing previous ${SERVICE_NAME}..."
   systemctl stop "${SERVICE_NAME}" 2>/dev/null || true
@@ -82,31 +84,59 @@ prepare_paths(){
   else warn "x-ui DB not found at ${DB_PATH}. The /usage page will 404 until x-ui is installed."
   fi
 }
-issue_cert_dns01_or_selfsigned(){
-  local domain="$1" cf_token="${2-}" cert_file="${CERT_DIR}/${domain}.cer" key_file="${CERT_DIR}/${domain}.cer.key"
-  if [[ -n "${cf_token}" ]]; then
-    info "Attempting Let’s Encrypt via DNS-01 (Cloudflare) for ${domain}..."
-    [[ -x "/root/.acme.sh/acme.sh" ]] || curl https://get.acme.sh | sh -s email="admin@${domain}"
-    export CF_Token="${cf_token}" CF_Account_ID=""
-    /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt
-    set +e
-    /root/.acme.sh/acme.sh --issue --dns dns_cf -d "${domain}" --keylength ec-256 \
-      --fullchain-file "${cert_file}" --key-file "${key_file}"
-    local rc=$?; set -e
-    if [[ $rc -eq 0 && -s "${cert_file}" && -s "${key_file}" ]]; then
-      chown "${SERVICE_USER}:${SERVICE_USER}" "${cert_file}" "${key_file}"
-      ok "Issued a valid certificate."
-      echo "${cert_file}:${key_file}"; return 0
-    else warn "DNS-01 issuance failed; using self-signed."
-    fi
+
+# ========== [Section] SSL via HTTP-01 on Port 80 (Let’s Encrypt) =============
+# Frees port 80, issues fullchain/key with acme.sh --standalone, restores services.
+issue_cert_http01_or_selfsigned(){
+  local domain="$1"
+  local cert_file="${CERT_DIR}/${domain}.cer"
+  local key_file="${CERT_DIR}/${domain}.cer.key"
+
+  info "Preparing HTTP-01 issuance on port 80 for ${domain}…"
+
+  # 1) Free port 80 temporarily
+  systemctl stop nginx 2>/dev/null || true
+  systemctl stop apache2 2>/dev/null || true
+  systemctl stop caddy 2>/dev/null || true
+  fuser -k 80/tcp 2>/dev/null || true
+
+  # 2) Open firewall for 80 during issuance (if ufw exists)
+  if command -v ufw >/dev/null 2>&1; then ufw allow 80/tcp || true; fi
+
+  # 3) Install acme.sh if needed & set CA
+  if [[ ! -x "/root/.acme.sh/acme.sh" ]]; then
+    curl https://get.acme.sh | sh -s email="admin@${domain}"
   fi
-  info "Generating self-signed certificate for ${domain} (1 year)..."
+  /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+
+  # 4) HTTP-01 standalone issuance on port 80
+  set +e
+  /root/.acme.sh/acme.sh --issue -d "${domain}" --standalone --keylength ec-256 \
+    --fullchain-file "${cert_file}" --key-file "${key_file}"
+  local rc=$?
+  set -e
+
+  # 5) Restore any web servers we stopped (best-effort)
+  systemctl start nginx 2>/dev/null || true
+  systemctl start apache2 2>/dev/null || true
+  systemctl start caddy 2>/dev/null || true
+
+  if [[ $rc -eq 0 && -s "${cert_file}" && -s "${key_file}" ]]; then
+    ok "Let's Encrypt HTTP-01 certificate issued."
+    chown "${SERVICE_USER}:${SERVICE_USER}" "${cert_file}" "${key_file}"
+    echo "${cert_file}:${key_file}"
+    return 0
+  fi
+
+  warn "HTTP-01 issuance failed (is port 80 reachable?). Falling back to self-signed."
+  # Fallback: self-signed (1 year)
   openssl req -x509 -newkey ec:<(openssl ecparam -name prime256v1) -nodes \
     -keyout "${key_file}" -out "${cert_file}" -days 365 -subj "/CN=${domain}"
   chown "${SERVICE_USER}:${SERVICE_USER}" "${cert_file}" "${key_file}"
-  ok "Self-signed cert created (browsers will warn)."
   echo "${cert_file}:${key_file}"
 }
+
+# ========== [Section] systemd Unit ===========================================
 write_unit(){
   local domain="$1" port="$2" cert_file="$3" key_file="$4"
   info "Writing systemd unit..."
@@ -139,6 +169,8 @@ EOF
   systemctl enable "${SERVICE_NAME}"
   ok "systemd unit ready."
 }
+
+# ========== [Section] Service Start & Logrotate ===============================
 start_service(){
   systemctl restart "${SERVICE_NAME}"
   sleep 1
@@ -161,7 +193,7 @@ ROT
   ok "Logrotate configured."
 }
 
-# ---------- Manager CLI (checker-x) ----------
+# ========== [Section] Manager CLI (checker-x) =================================
 install_cli(){
   local target="/usr/local/bin/checker-x"
   info "Installing global manager: checker-x"
@@ -176,9 +208,8 @@ SERVICE_HOME="/home/${SERVICE_USER}"; APP_DIR="${SERVICE_HOME}/Traffic-X"
 LOG_FILE="/var/log/traffic-x.log"; CERT_DIR="/var/lib/Traffic-X/certs"
 DB_PATH="/etc/x-ui/x-ui.db"; UNIT_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 REPO_HEAD_ZIP="https://github.com/Tyga-x/Traffic-X/archive/refs/heads/main.zip"
-CF_ALLOWED_HTTPS_PORTS="443, 2053, 2083, 2087, 2096, 8443"
 
-require_root(){ [[ $EUID -eq 0 ]] || die "Run as root (sudo)."; command -v systemctl >/dev/null || die "systemd required."; }
+require_root(){ [[ $EUID -eq 0 ]] || die "Run as root (sudo)."); command -v systemctl >/dev/null || die "systemd required."; }
 ensure_ubuntu(){ command -v lsb_release >/dev/null 2>&1 || { apt-get update -y && apt-get install -y lsb-release; }; }
 
 fresh_cleanup(){ info "Cleaning previous ${SERVICE_NAME}..."; systemctl stop "${SERVICE_NAME}" 2>/dev/null || true; systemctl disable "${SERVICE_NAME}" 2>/dev/null || true; rm -f "${UNIT_FILE}" || true; systemctl daemon-reload || true; rm -rf "${APP_DIR}" || true; ok "Clean slate."; }
@@ -187,7 +218,46 @@ install_prereqs(){ info "Installing prerequisites..."; apt-get update -y; apt-ge
 fetch_app(){ local version="${1:-latest}" dl="$REPO_HEAD_ZIP"; [[ -n "${version}" && "${version}" != "latest" ]] && dl="https://github.com/Tyga-x/Traffic-X/archive/refs/tags/${version}.zip"; info "Downloading Traffic-X (${version})..."; local tmp="/tmp/Traffic-X.zip"; curl -fL "${dl}" -o "${tmp}"; mkdir -p "${APP_DIR}"; unzip -q "${tmp}" -d "${SERVICE_HOME}"; local extracted; extracted=$(find "${SERVICE_HOME}" -maxdepth 1 -type d -name "Traffic-X*" | head -n1); rsync -a "${extracted}/" "${APP_DIR}/"; rm -f "${tmp}"; chown -R "${SERVICE_USER}:${SERVICE_USER}" "${APP_DIR}"; [[ -d "${APP_DIR}/templates" ]] || die "Templates missing."; [[ -f "${APP_DIR}/app.py" ]] || die "app.py missing."; ok "Fetched to ${APP_DIR}"; }
 setup_venv(){ info "Creating venv..."; sudo -u "${SERVICE_USER}" python3 -m venv "${APP_DIR}/venv"; sudo -u "${SERVICE_USER}" bash -lc "${APP_DIR}/venv/bin/pip install --upgrade pip"; sudo -u "${SERVICE_USER}" bash -lc "${APP_DIR}/venv/bin/pip install flask gunicorn psutil requests"; ok "venv ready."; }
 prepare_paths(){ mkdir -p "${CERT_DIR}"; touch "${LOG_FILE}"; chown -R "${SERVICE_USER}:${SERVICE_USER}" "${CERT_DIR}" "${LOG_FILE}"; if [[ -f "${DB_PATH}" ]]; then chmod 644 "${DB_PATH}" || true; chown root:root "${DB_PATH}" || true; else warn "x-ui DB not found at ${DB_PATH}."; fi; }
-issue_cert_dns01_or_selfsigned(){ local domain="$1" cf_token="${2-}" cert_file="${CERT_DIR}/${domain}.cer" key_file="${CERT_DIR}/${domain}.cer.key"; if [[ -n "${cf_token}" ]]; then info "Trying LE DNS-01 (Cloudflare) for ${domain}..."; [[ -x "/root/.acme.sh/acme.sh" ]] || curl https://get.acme.sh | sh -s email="admin@${domain}"; export CF_Token="${cf_token}" CF_Account_ID=""; /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt; set +e; /root/.acme.sh/acme.sh --issue --dns dns_cf -d "${domain}" --keylength ec-256 --fullchain-file "${cert_file}" --key-file "${key_file}"; local rc=$?; set -e; if [[ $rc -eq 0 && -s "${cert_file}" && -s "${key_file}" ]]; then chown "${SERVICE_USER}:${SERVICE_USER}" "${cert_file}" "${key_file}"; ok "Valid cert issued."; echo "${cert_file}:${key_file}"; return 0; else warn "DNS-01 failed; using self-signed."; fi; fi; info "Self-signed for ${domain}..."; openssl req -x509 -newkey ec:<(openssl ecparam -name prime256v1) -nodes -keyout "${key_file}" -out "${cert_file}" -days 365 -subj "/CN=${domain}"; chown "${SERVICE_USER}:${SERVICE_USER}" "${cert_file}" "${key_file}"; ok "Self-signed ready."; echo "${cert_file}:${key_file}"; }
+
+# --- HTTP-01 issuance helper (inside checker-x) ---
+issue_cert_http01_or_selfsigned(){
+  local domain="$1"
+  local cert_file="${CERT_DIR}/${domain}.cer"
+  local key_file="${CERT_DIR}/${domain}.cer.key"
+
+  info "Preparing HTTP-01 issuance on port 80 for ${domain}…"
+  systemctl stop nginx 2>/dev/null || true
+  systemctl stop apache2 2>/dev/null || true
+  systemctl stop caddy 2>/dev/null || true
+  fuser -k 80/tcp 2>/dev/null || true
+  if command -v ufw >/dev/null 2>&1; then ufw allow 80/tcp || true; fi
+
+  if [[ ! -x "/root/.acme.sh/acme.sh" ]]; then
+    curl https://get.acme.sh | sh -s email="admin@${domain}"
+  fi
+  /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+  set +e
+  /root/.acme.sh/acme.sh --issue -d "${domain}" --standalone --keylength ec-256 \
+    --fullchain-file "${cert_file}" --key-file "${key_file}"
+  local rc=$?
+  set -e
+  systemctl start nginx 2>/dev/null || true
+  systemctl start apache2 2>/dev/null || true
+  systemctl start caddy 2>/dev/null || true
+
+  if [[ $rc -eq 0 && -s "${cert_file}" && -s "${key_file}" ]]; then
+    chown "${SERVICE_USER}:${SERVICE_USER}" "${cert_file}" "${key_file}"
+    ok "Let's Encrypt certificate issued."
+    echo "${cert_file}:${key_file}"
+    return 0
+  fi
+  warn "HTTP-01 issuance failed; falling back to self-signed."
+  openssl req -x509 -newkey ec:<(openssl ecparam -name prime256v1) -nodes \
+    -keyout "${key_file}" -out "${cert_file}" -days 365 -subj "/CN=${domain}"
+  chown "${SERVICE_USER}:${SERVICE_USER}" "${cert_file}" "${key_file}"
+  echo "${cert_file}:${key_file}"
+}
+
 write_unit(){ local domain="$1" port="$2" cert_file="$3" key_file="$4"; info "Writing systemd unit..."; cat > "${UNIT_FILE}" <<EOF
 [Unit]
 Description=Traffic-X Web App
@@ -218,15 +288,31 @@ install_logrotate(){ info "Configuring logrotate..."; cat > /etc/logrotate.d/tra
 ROT
 ok "Logrotate set."; }
 
-cmd_install(){ echo -e "${BLUE}Traffic-X Installation${NC}"; local DOMAIN="${TRAFFICX_DOMAIN-}"; local PORT="${TRAFFICX_PORT-}"; local CF_TOKEN="${CF_TOKEN-}"; local VERSION="${TRAFFICX_VERSION-}"; [[ -n "${DOMAIN}" ]] || read -r -p "$(echo -e "${CYAN}Enter domain (e.g. example.com): ${NC}")" DOMAIN; [[ -n "${PORT}" ]] || { read -r -p "$(echo -e "${CYAN}Enter port [default 5000]: ${NC}")" PORT; PORT=${PORT:-5000}; }; echo -e "${YELLOW}If Cloudflare is proxied (orange cloud), HTTPS ports allowed:${NC} ${CF_ALLOWED_HTTPS_PORTS}"; echo -e "${YELLOW}Port 5000 will NOT proxy via Cloudflare. Use DNS-only (gray cloud) if you insist.${NC}"; [[ -n "${CF_TOKEN}" ]] || read -r -p "$(echo -e "${CYAN}Cloudflare API Token for DNS-01 (optional): ${NC}")" CF_TOKEN || true; [[ -n "${VERSION}" ]] || { read -r -p "$(echo -e "${CYAN}Version tag (e.g. v1.0.1) or blank for latest: ${NC}")" VERSION; VERSION=${VERSION:-latest}; } ; fresh_cleanup; ensure_user; install_prereqs; fetch_app "${VERSION}"; setup_venv; prepare_paths; local pair; pair=$(issue_cert_dns01_or_selfsigned "${DOMAIN}" "${CF_TOKEN}"); local CERT_FILE="${pair%%:*}" KEY_FILE="${pair##*:}"; write_unit "${DOMAIN}" "${PORT}" "${CERT_FILE}" "${KEY_FILE}"; install_logrotate; start_service; echo; ok "Installation complete!"; echo -e "${GREEN}App URL (HTTPS):${NC} https://${DOMAIN}:${PORT}"; echo -e "${GREEN}Certs:${NC} ${CERT_FILE}  ${KEY_FILE}"; echo -e "${GREEN}Log:${NC}   ${LOG_FILE}"; }
+cmd_install(){
+  echo -e "${BLUE}Traffic-X Installation${NC}"
+  local DOMAIN="${TRAFFICX_DOMAIN-}"; local PORT="${TRAFFICX_PORT-}"; local VERSION="${TRAFFICX_VERSION-}"
+  [[ -n "${DOMAIN}" ]] || read -r -p "$(echo -e "${CYAN}Enter domain (e.g. example.com): ${NC}")" DOMAIN
+  [[ -n "${PORT}" ]] || { read -r -p "$(echo -e "${CYAN}Enter HTTPS port [default 5000]: ${NC}")" PORT; PORT=${PORT:-5000}; }
+  [[ -n "${VERSION}" ]] || { read -r -p "$(echo -e "${CYAN}Version tag (e.g. v1.0.1) or blank for latest: ${NC}")" VERSION; VERSION=${VERSION:-latest}; }
+
+  fresh_cleanup; ensure_user; install_prereqs; fetch_app "${VERSION}"; setup_venv; prepare_paths
+  local pair; pair=$(issue_cert_http01_or_selfsigned "${DOMAIN}")
+  local CERT_FILE="${pair%%:*}" KEY_FILE="${pair##*:}"
+  write_unit "${DOMAIN}" "${PORT}" "${CERT_FILE}" "${KEY_FILE}"
+  install_logrotate; start_service
+  echo; ok "Installation complete!"
+  echo -e "${GREEN}App URL (HTTPS):${NC} https://${DOMAIN}:${PORT}"
+  echo -e "${GREEN}Certs:${NC} ${CERT_FILE}  ${KEY_FILE}"
+  echo -e "${GREEN}Log:${NC}   ${LOG_FILE}"
+}
 cmd_uninstall(){ info "Uninstalling ${SERVICE_NAME}..."; systemctl stop "${SERVICE_NAME}" 2>/dev/null || true; systemctl disable "${SERVICE_NAME}" 2>/dev/null || true; rm -f "${UNIT_FILE}"; systemctl daemon-reload || true; rm -rf "${APP_DIR}"; ok "Uninstalled. Certs/log kept: ${CERT_DIR}, ${LOG_FILE}"; }
 cmd_status(){ systemctl --no-pager -l status "${SERVICE_NAME}" || true; echo; ss -ltnp | grep -E '(:[0-9]+)' | grep "${SERVICE_NAME}" || true; }
 cmd_start(){ systemctl start "${SERVICE_NAME}"; ok "Started."; }
-cmd_stop(){ systemctl stop "${SERVICE_NAME}"; ok "Stopped."; }
+cmd_stop(){ systemctl stop  "${SERVICE_NAME}"; ok "Stopped."; }
 cmd_restart(){ systemctl restart "${SERVICE_NAME}"; ok "Restarted."; }
 cmd_logs(){ tail -n 50 "${LOG_FILE}" || true; }
 cmd_follow(){ tail -f "${LOG_FILE}"; }
-cmd_change_port(){ local newp; read -r -p "$(echo -e "${CYAN}Enter new port:${NC} ")" newp; [[ "${newp}" =~ ^[0-9]+$ ]] || die "Invalid port."; info "Switching port to ${newp}..."; sed -i "s/^Environment=PORT=.*/Environment=PORT=${newp}/" "${UNIT_FILE}"; systemctl daemon-reload; systemctl restart "${SERVICE_NAME}"; ok "Port changed to ${newp}. CF-proxy allowed: ${CF_ALLOWED_HTTPS_PORTS}"; }
+cmd_change_port(){ local newp; read -r -p "$(echo -e "${CYAN}Enter new HTTPS port:${NC} ")" newp; [[ "${newp}" =~ ^[0-9]+$ ]] || die "Invalid port."; info "Switching port to ${newp}..."; sed -i "s/^Environment=PORT=.*/Environment=PORT=${newp}/" "${UNIT_FILE}"; systemctl daemon-reload; systemctl restart "${SERVICE_NAME}"; ok "Port changed to ${newp}."; }
 cmd_reboot(){ read -r -p "$(echo -e "${YELLOW}Reboot the system now? [y/N] ${NC}")" ans; [[ "${ans,,}" == "y" ]] && { ok "Rebooting..."; reboot; } || warn "Reboot cancelled."; }
 
 show_menu(){ clear; echo -e "${BLUE}=== Traffic-X Manager (checker-x) ===${NC}"; echo "1) Install / Reinstall (fresh)"; echo "2) Uninstall"; echo "3) Start"; echo "4) Stop"; echo "5) Restart"; echo "6) Status"; echo "7) Tail last 50 log lines"; echo "8) Follow logs"; echo "9) Change Port"; echo "r) Reboot system"; echo "0) Exit"; echo; }
@@ -252,36 +338,32 @@ SCRIPT
   ok "Installed global command: checker-x"
 }
 
-# ---------- One-shot installer flow ----------
+# ========== [Section] One-shot Installer Flow =================================
 noninteractive_install(){
-  # Read envs or prompt
-  local DOMAIN="${TRAFFICX_DOMAIN-}" PORT="${TRAFFICX_PORT-}" CF_TOKEN_IN="${CF_TOKEN-}" VERSION="${TRAFFICX_VERSION-}"
+  local DOMAIN="${TRAFFICX_DOMAIN-}" PORT="${TRAFFICX_PORT-}" VERSION="${TRAFFICX_VERSION-}"
   [[ -n "${DOMAIN}" ]] || read -r -p "$(echo -e "${CYAN}Enter domain (e.g. example.com): ${NC}")" DOMAIN
-  [[ -n "${PORT}" ]] || { read -r -p "$(echo -e "${CYAN}Enter port [default 5000]: ${NC}")" PORT; PORT=${PORT:-5000}; }
-  echo -e "${YELLOW}If Cloudflare is proxied (orange cloud), HTTPS ports allowed:${NC} ${CF_ALLOWED_HTTPS_PORTS}"
-  echo -e "${YELLOW}Port 5000 will NOT proxy via Cloudflare. Use DNS-only (gray cloud) if you insist.${NC}"
-  [[ -n "${CF_TOKEN_IN}" ]] || read -r -p "$(echo -e "${CYAN}Cloudflare API Token for DNS-01 (optional): ${NC}")" CF_TOKEN_IN || true
-  [[ -n "${VERSION}" ]] || { read -r -p "$(echo -e "${CYAN}Version tag (e.g. v1.0.1) or blank for latest: ${NC}")" VERSION; VERSION=${VERSION:-latest}; }
+  [[ -n "${PORT}" ]] || { read -r -p "$(echo -e "${CYAN}Enter HTTPS port [default 5000]: ${NC}")" PORT; PORT=${PORT:-5000}; }
 
   fresh_cleanup
   ensure_user
   install_prereqs
-  fetch_app "${VERSION}"
+  fetch_app "${VERSION:-latest}"
   setup_venv
   prepare_paths
-  local pair; pair=$(issue_cert_dns01_or_selfsigned "${DOMAIN}" "${CF_TOKEN_IN}")
+  local pair; pair=$(issue_cert_http01_or_selfsigned "${DOMAIN}")
   local CERT_FILE="${pair%%:*}" KEY_FILE="${pair##*:}"
   write_unit "${DOMAIN}" "${PORT}" "${CERT_FILE}" "${KEY_FILE}"
   install_logrotate
   start_service
+
   echo; ok "Installation complete!"
   echo -e "${GREEN}App URL (HTTPS):${NC} https://${DOMAIN}:${PORT}"
   echo -e "${GREEN}Certs:${NC} ${CERT_FILE}  ${KEY_FILE}"
   echo -e "${GREEN}Log:${NC}   ${LOG_FILE}"
 }
 
-# ---------- Bootstrap run ----------
+# ========== [Section] Bootstrap Run ==========================================
 require_root
 ensure_ubuntu
-install_cli      # make the checker-x menu tool available globally
+install_cli        # make the checker-x menu tool available globally
 noninteractive_install
