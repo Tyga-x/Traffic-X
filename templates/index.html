@@ -291,15 +291,47 @@
     })();
 
     // Fetch cloud provider name
-    (async () => {
-      try {
-        const res = await fetch("/cloud-provider");
-        const data = await res.json();
-        document.getElementById("cloud-provider").textContent = data.provider || "Unknown";
-      } catch {
-        document.getElementById("cloud-provider").textContent = "Unavailable";
+  (async () => {
+    try {
+      const res = await fetch("/cloud-provider");
+      const data = await res.json();
+      document.getElementById("cloud-provider").textContent = data.provider || "Unknown";
+    } catch {
+      document.getElementById("cloud-provider").textContent = "Unavailable";
+    }
+  })();
+
+  // ===== NEW: Live Mbps (Download/Upload) =====
+  async function refreshNet() {
+    try {
+      const r = await fetch("/net-live");
+      const data = await r.json();
+      if (data && data.total) {
+        document.getElementById("download-traffic").textContent = data.total.rx_mbps.toFixed(2) + " Mbps";
+        document.getElementById("upload-traffic").textContent   = data.total.tx_mbps.toFixed(2) + " Mbps";
       }
-    })();
-  </script>
-</body>
-</html>
+    } catch (e) {
+      // Ignore transient errors
+    }
+  }
+  refreshNet();
+  setInterval(refreshNet, 2000);
+
+  // OPTIONAL: Per-connection top talkers (requires /net-connections + sudoers)
+  /*
+  async function refreshConns(){
+    try {
+      const r = await fetch("/net-connections");
+      const data = await r.json();
+      if (data.available && data.rows?.length) {
+        // Example of rendering:
+        // document.getElementById("top-conns").innerHTML = data.rows.slice(0,5).map(
+        //   x => \`<div class="metric"><div class="label"><i class="fas fa-terminal"></i> \${x.process}</div>
+        //           <div class="badge">\${x.rx_mbps}/\${x.tx_mbps} Mbps</div></div>\`
+        // ).join("");
+      }
+    } catch(e){}
+  }
+  // setInterval(refreshConns, 4000);
+  */
+</script>
