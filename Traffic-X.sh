@@ -137,7 +137,7 @@ else
     fi
 fi
 
-# Generate app.py with new features (server metrics, network traffic, provider detection)
+# app.py with new features (server metrics, network traffic, provider detection)
 cat > app.py <<EOL
 from flask import Flask, request, render_template, jsonify
 import sqlite3
@@ -146,6 +146,11 @@ import psutil
 import requests
 from datetime import datetime
 import os
+
+# NEW: imports for live throughput and optional per-connection snapshot
+import time
+import shutil
+import subprocess
 
 app = Flask(__name__)
 db_path = os.getenv("DB_PATH", "/etc/x-ui/x-ui.db")
@@ -235,7 +240,7 @@ def update_status():
 
 @app.route('/server-status')
 def server_status():
-    """Returns CPU, RAM, Disk usage, and Network traffic."""
+    """Returns CPU, RAM, Disk usage, and cumulative Network counters (since boot)."""
     try:
         net_io = psutil.net_io_counters()
         status = {
@@ -281,6 +286,96 @@ def cloud_provider():
         return jsonify({"provider": provider})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# ========= NEW: Live network throughput (Mbps) =========
+def _bytes_to_mbps(delta_bytes, seconds):
+    if seconds <= 0:
+        return 0.0
+    return (delta_bytes * 8) / (seconds * 1_000_000)  # Mbps
+
+@app.route('/net-live')
+def net_live():
+    """
+    Returns live network rates (Mbps) sampled over ~1s:
+    {
+      "total": {"rx_mbps": float, "tx_mbps": float},
+      "per_nic": {"eth0": {"rx_mbps":..., "tx_mbps":...}, ...}
+    }
+    """
+    try:
+        t0 = time.time()
+        c0_total = psutil.net_io_counters()
+        c0_per = psutil.net_io_counters(pernic=True)
+        time.sleep(1.0)
+        t1 = time.time()
+        c1_total = psutil.net_io_counters()
+        c1_per = psutil.net_io_counters(pernic=True)
+        dt = t1 - t0
+
+        total = {
+            "rx_mbps": round(_bytes_to_mbps(c1_total.bytes_recv - c0_total.bytes_recv, dt), 3),
+            "tx_mbps": round(_bytes_to_mbps(c1_total.bytes_sent - c0_total.bytes_sent, dt), 3),
+        }
+
+        per_nic = {}
+        for nic, s0 in c0_per.items():
+            s1 = c1_per.get(nic)
+            if not s1:
+                continue
+            per_nic[nic] = {
+                "rx_mbps": round(_bytes_to_mbps(s1.bytes_recv - s0.bytes_recv, dt), 3),
+                "tx_mbps": round(_bytes_to_mbps(s1.bytes_sent - s0.bytes_sent, dt), 3),
+            }
+
+        return jsonify({"total": total, "per_nic": per_nic})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ========= NEW (optional): per-connection/process snapshot via nethogs =========
+@app.route('/net-connections')
+def net_connections():
+    """
+    Uses nethogs (-t -c 1 -d 1) to produce a 1-second snapshot.
+    Returns: { available, rows:[{iface,pid,user,process,tx_mbps,rx_mbps}, ...] }
+    Requires: sudo apt install nethogs, plus sudoers permission for the service user.
+    """
+    try:
+        if not shutil.which("nethogs"):
+            return jsonify({"available": False, "message": "nethogs not installed"}), 200
+
+        out = subprocess.check_output(
+            ["sudo", "nethogs", "-t", "-c", "1", "-d", "1"],
+            stderr=subprocess.STDOUT, text=True
+        )
+
+        rows = []
+        for line in out.splitlines():
+            parts = line.split()
+            if len(parts) >= 6 and parts[0] != "Refreshing:":
+                iface, pid, user = parts[0], parts[1], parts[2]
+                sent_kbs, recv_kbs = parts[-2], parts[-1]
+                process = " ".join(parts[3:-2])
+
+                def kb_to_mbps(s):
+                    try:
+                        return round((float(s) * 8) / 1000, 3)
+                    except:
+                        return 0.0
+
+                rows.append({
+                    "iface": iface,
+                    "pid": pid,
+                    "user": user,
+                    "process": process,
+                    "tx_mbps": kb_to_mbps(sent_kbs),
+                    "rx_mbps": kb_to_mbps(recv_kbs),
+                })
+
+        return jsonify({"available": True, "rows": rows})
+    except subprocess.CalledProcessError as e:
+        return jsonify({"available": False, "message": e.output}), 200
+    except Exception as e:
+        return jsonify({"available": False, "message": str(e)}), 200
 
 @app.route('/ping')
 def ping():
