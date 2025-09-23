@@ -1,353 +1,385 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>X-SL USAGE</title>
-    <style>
-        /* Existing Gradient Background Animation */
-        @keyframes gradientAnimation {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TRAFFIC-X • Usage Details</title>
 
-        body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(-45deg, #6a1b9a, #263D9B, #742CA1, #009688);
-            background-size: 400% 400%;
-            animation: gradientAnimation 10s ease infinite;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            color: white;
-            flex-direction: column;
-        }
+  <!-- Icons + Charts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
-        .container {
-            background: rgba(255, 255, 255, 0.12);
-            padding: 18px;
-            border-radius: 10px;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
-            width: 100%;
-            max-width: 400px;
-            text-align: left;
-        }
+  <style>
+    /* ===== Background & Base ===== */
+    @keyframes gradientBackground {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
 
-        h2 {
-            color: #ffffff;
-            margin-bottom: 10px;
-            font-size: 22px;
-            font-weight: bold;
-            text-align: center;
-        }
+    :root{
+      --primary:#05B031;
+      --glass: rgba(255,255,255,.1);
+      --glass-2: rgba(255,255,255,.18);
+      --text: #fff;
+      --shadow: 0 6px 20px rgba(0,0,0,.3);
+    }
 
-        .info {
-            background: rgba(255, 255, 255, 0.15);
-            margin: 8px 0;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 14px;
-            color: #ffffff;
-            font-weight: bold;
-        }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+      color: var(--text);
+      background: linear-gradient(135deg, #1e1f26, #641B9F, #263D9B, #009688);
+      background-size: 400% 400%;
+      animation: gradientBackground 15s ease infinite;
+      min-height: 100vh;
+    }
 
-        .progress-container {
-            width: 100%;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 5px;
-            overflow: hidden;
-            margin-top: 5px;
-        }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
 
-        .progress-bar {
-            height: 6px;
-            width: 0%;
-            background: #05B031; /* Default green color */
-            transition: width 1.5s ease-in-out, background-color 0.5s ease;
-        }
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:24px;
+    }
+    .brand{
+      display:flex;align-items:center;gap:10px;font-size:24px;font-weight:800;letter-spacing:1px;
+    }
+    .brand i{font-size:24px}
+    .actions{display:flex;gap:10px}
+    .btn{
+      background: var(--primary); color:#fff; border:none; border-radius:10px;
+      padding:10px 14px; cursor:pointer; box-shadow: var(--shadow); font-weight:600;
+    }
+    .btn.outline{ background: transparent; border:1px solid #ffffff44 }
+    .btn:hover{ filter:brightness(.95) }
 
-        .toggle-container {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
+    .grid{
+      display:grid; gap:20px;
+      grid-template-columns: repeat(3, 1fr);
+    }
+    @media (max-width: 992px){ .grid{ grid-template-columns:repeat(2,1fr);} }
+    @media (max-width: 600px){ .grid{ grid-template-columns:1fr;} }
 
-        .toggle {
-            width: 32px;
-            height: 18px;
-            background: #bbb;
-            border-radius: 20px;
-            position: relative;
-            cursor: pointer;
-            transition: 0.3s;
-        }
+    .card{
+      background: var(--glass);
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+      border-radius: 16px;
+      padding: 22px;
+      position: relative;
+      transition: transform .15s ease;
+    }
+    .card:hover{ transform: translateY(-3px); }
 
-        .toggle:before {
-            content: "";
-            position: absolute;
-            width: 14px;
-            height: 14px;
-            background: white;
-            border-radius: 50%;
-            top: 50%;
-            left: 2px;
-            transform: translateY(-50%);
-            transition: 0.3s;
-        }
+    .card h3{
+      margin:0 0 14px; font-size:18px; display:flex; align-items:center; gap:10px; font-weight:700;
+    }
+    .card h3 i{ font-size:20px }
 
-        .toggle.active {
-            background: #2ecc71;
-        }
+    .metric{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      background: var(--glass-2); border-radius:12px; padding:10px 12px; margin:8px 0;
+    }
+    .metric .label{ display:flex; align-items:center; gap:8px; font-weight:600 }
+    .badge{
+      background:#ffffff22; border:1px solid #ffffff33; padding:4px 8px; border-radius:999px; font-size:12px;
+    }
 
-        .toggle.active:before {
-            left: 16px;
-        }
+    .progress-container{
+      background: rgba(255,255,255,.25);
+      border-radius: 6px; height:10px; overflow:hidden; margin-top:8px;
+    }
+    .progress-bar{
+      height: 100%; width: 0%; background: var(--primary);
+      transition: width .8s ease, background-color .4s ease;
+    }
 
-        .footer {
-            font-size: 12px;
-            color: #ffffff;
-            margin-top: 15px;
-            text-align: center;
-        }
+    /* Toggle (user config enable/disable) */
+    .toggle{
+      width:44px; height:24px; background:#999; border-radius:999px; position:relative; cursor:pointer; flex-shrink:0;
+    }
+    .toggle::after{
+      content:""; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:left .2s ease;
+    }
+    .toggle.active{ background: var(--primary); }
+    .toggle.active::after{ left:23px; }
 
-        /* ============= New Animation Background ========= */
-        .background {
-            background: linear-gradient(132deg, #FC415A, #591BC5, #212335);
-            background-size: 400% 400%;
-            animation: Gradient 15s ease infinite;
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100vh;
-            width: 100%;
-            z-index: -1;
-        }
+    .muted{ opacity:.85; font-size:13px }
 
-        .cube {
-            position: absolute;
-            top: 80vh;
-            left: 45vw;
-            width: 10px;
-            height: 10px;
-            border: solid 1px #D7D4E4;
-            transform-origin: top left;
-            transform: scale(0) rotate(0deg) translate(-50%, -50%);
-            animation: cube 12s ease-in forwards infinite;
-        }
+    /* Chart containers */
+    .chart{ width:100%; height:260px }
+    .chart.small{ height:220px }
 
-        .cube:nth-child(2n) {
-            border-color: #FFF;
-        }
+    .pill{
+      position:absolute; top:12px; right:12px; font-size:12px; padding:6px 10px; border-radius:999px;
+      background:#ffffff22; border:1px solid #ffffff33;
+    }
+    .ok{ color:#9cffb1 } .warn{ color:#ffd16b } .danger{ color:#ff9a9a }
 
-        .cube:nth-child(2) {
-            animation-delay: 2s;
-            left: 25vw;
-            top: 40vh;
-        }
-
-        .cube:nth-child(3) {
-            animation-delay: 4s;
-            left: 75vw;
-            top: 50vh;
-        }
-
-        .cube:nth-child(4) {
-            animation-delay: 6s;
-            left: 90vw;
-            top: 10vh;
-        }
-
-        .cube:nth-child(5) {
-            animation-delay: 8s;
-            left: 10vw;
-            top: 85vh;
-        }
-
-        .cube:nth-child(6) {
-            animation-delay: 10s;
-            left: 50vw;
-            top: 10vh;
-        }
-
-        @keyframes Gradient {
-            0% {
-                background-position: 0% 50%;
-            }
-            50% {
-                background-position: 100% 50%;
-            }
-            100% {
-                background-position: 0% 50%;
-            }
-        }
-
-        @keyframes cube {
-            from {
-                transform: scale(0) rotate(0deg) translate(-50%, -50%);
-                opacity: 1;
-            }
-            to {
-                transform: scale(20) rotate(960deg) translate(-50%, -50%);
-                opacity: 0;
-            }
-        }
-    </style>
+    .footer{
+      text-align:center; margin-top:26px; color:#ddd; font-size:12px;
+    }
+  </style>
 </head>
 <body>
-    <!-- New Animated Background -->
-    <div class="background"></div>
-    <div class="cube"></div>
-    <div class="cube"></div>
-    <div class="cube"></div>
-    <div class="cube"></div>
-    <div class="cube"></div>
-    <div class="cube"></div>
+  <div class="container">
 
-    <!-- Existing Content -->
-    <div class="container">
-        <h2>User Data Usage</h2>
-        <div class="info">Name: {{ email }}</div>
-        <div class="info">Uploaded: {{ up }} 
-            <div class="progress-container">
-                <div class="progress-bar" id="uploaded-bar"></div>
-            </div>
-        </div>
-        <div class="info">Downloaded: {{ down }} 
-            <div class="progress-container">
-                <div class="progress-bar" id="downloaded-bar"></div>
-            </div>
-        </div>
-        <div class="info">Limit: {{ total }} 
-            <div class="progress-container">
-                <div class="progress-bar" id="limit-bar"></div>
-            </div>
-        </div>
-        <div class="info">Expiry Date: {{ expiry_date }}</div>
-        <div class="info toggle-container">
-            <span>Config Status:</span>
-            <div class="toggle" id="config-toggle"></div>
-        </div>
+    <!-- Top -->
+    <div class="topbar">
+      <div class="brand">
+        <i class="fa-solid fa-traffic-light"></i> TRAFFIC-X
+      </div>
+      <div class="actions">
+        <a class="btn outline" href="/"><i class="fa-solid fa-arrow-left"></i> Back</a>
+        <a class="btn" href="https://github.com/Tyga-x/Traffic-X" target="_blank"><i class="fa-brands fa-github"></i></a>
+      </div>
     </div>
 
-    <div class="footer">
-        &copy; 2025 Traffic-X. All rights reserved.
+    <!-- GRID (3 x 2 like index) -->
+    <div class="grid">
+
+      <!-- User Overview -->
+      <div class="card">
+        <span class="pill"><i class="fa-regular fa-user"></i> {{ email }}</span>
+        <h3><i class="fa-solid fa-id-badge"></i>User Overview</h3>
+
+        <div class="metric">
+          <div class="label"><i class="fa-solid fa-shield-heart"></i> Config Status</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span id="status-text" class="badge">—</span>
+            <div id="config-toggle" class="toggle"></div>
+          </div>
+        </div>
+
+        <div class="metric">
+          <div class="label"><i class="fa-solid fa-calendar-xmark"></i> Expiry</div>
+          <div class="badge" id="expiry-badge">{{ expiry_date }}</div>
+        </div>
+
+        <div class="muted">Tip: toggle will POST to <code>/update-status</code>.</div>
+      </div>
+
+      <!-- Usage (numbers + progress) -->
+      <div class="card">
+        <h3><i class="fa-solid fa-gauge-high"></i>Usage</h3>
+
+        <div class="metric">
+          <div class="label"><i class="fa-solid fa-upload"></i> Uploaded</div>
+          <div class="badge">{{ up }}</div>
+        </div>
+        <div class="progress-container"><div id="uploaded-bar" class="progress-bar"></div></div>
+
+        <div class="metric">
+          <div class="label"><i class="fa-solid fa-download"></i> Downloaded</div>
+          <div class="badge">{{ down }}</div>
+        </div>
+        <div class="progress-container"><div id="downloaded-bar" class="progress-bar"></div></div>
+
+        <div class="metric">
+          <div class="label"><i class="fa-solid fa-hard-drive"></i> Limit</div>
+          <div class="badge">{{ total }}</div>
+        </div>
+        <div class="progress-container"><div id="limit-bar" class="progress-bar"></div></div>
+      </div>
+
+      <!-- Expiry Gauge (days left) -->
+      <div class="card">
+        <h3><i class="fa-regular fa-clock"></i>Days to Expiry</h3>
+        <div id="expiry-gauge" class="chart small"></div>
+        <div class="muted" id="expiry-desc">—</div>
+      </div>
+
+      <!-- Summary Chart (Upload/Download vs Remaining) -->
+      <div class="card">
+        <h3><i class="fa-solid fa-chart-line"></i>Summary (Live)</h3>
+        <div id="summary-chart" class="chart"></div>
+        <div class="muted">Shows uploaded & downloaded compared to remaining quota.</div>
+      </div>
+
+      <!-- Breakdown Donut -->
+      <div class="card">
+        <h3><i class="fa-solid fa-chart-pie"></i>Usage Breakdown</h3>
+        <div id="breakdown" class="chart small"></div>
+      </div>
+
+      <!-- Quick Info -->
+      <div class="card">
+        <h3><i class="fa-solid fa-circle-info"></i>Quick Info</h3>
+        <div class="metric">
+          <div class="label"><i class="fa-solid fa-signal"></i> Total Used</div>
+          <div class="badge" id="total-used-badge">—</div>
+        </div>
+        <div class="metric">
+          <div class="label"><i class="fa-solid fa-box-archive"></i> Remaining</div>
+          <div class="badge" id="remaining-badge">—</div>
+        </div>
+        <div class="metric">
+          <div class="label"><i class="fa-solid fa-percent"></i> Utilization</div>
+          <div class="badge" id="utilization-badge">—</div>
+        </div>
+      </div>
+
     </div>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            function parseValue(value) {
-                if (!value) return 0; // Handle empty or undefined values
-                return parseFloat(value.replace(/[^\d.]/g, '')) || 0;
-            }
+    <div class="footer">© 2025 Traffic-X. All rights reserved.</div>
+  </div>
 
-            function convertToMB(value, unit) {
-                if (!unit) return value; // Assume MB if no unit is provided
-                if (unit.includes("GB")) {
-                    return value * 1024; // Convert GB to MB
-                } else if (unit.includes("KB")) {
-                    return value / 1024; // Convert KB to MB
-                } else {
-                    return value; // Assume MB
-                }
-            }
+  <script>
+    // ===== Helpers to parse human-readable sizes from Flask (e.g., "4.2 GB") =====
+    function parseNum(str){ if (!str) return 0; const m=String(str).match(/[\d.]+/); return m?parseFloat(m[0]):0; }
+    function unit(str){ if (!str) return ""; const m=String(str).match(/[a-zA-Z]+/g); return m?m.join(""):""; }
+    function toMB(value, u){
+      const U = (u||"").toUpperCase();
+      if (U.includes("TB")) return value*1024*1024;
+      if (U.includes("GB")) return value*1024;
+      if (U.includes("MB")) return value;
+      if (U.includes("KB")) return value/1024;
+      return value; // assume MB
+    }
 
-            // Extract units from the Flask variables
-            let uploadedUnit = "{{ up }}".replace(/[^a-zA-Z]/g, ''); // Extract "MB", "GB", etc.
-            let downloadedUnit = "{{ down }}".replace(/[^a-zA-Z]/g, '');
-            let totalLimitUnit = "{{ total }}".replace(/[^a-zA-Z]/g, '');
+    // ===== Read values from Jinja =====
+    const upStr = "{{ up }}";
+    const downStr = "{{ down }}";
+    const totalStr = "{{ total }}";
+    const userStatus = ("{{ user_status }}".trim().toLowerCase() === "enabled");
+    const expiryStr = "{{ expiry_date }}";
 
-            // Get dynamic values from Flask backend
-            let uploaded = parseValue("{{ up }}");
-            let downloaded = parseValue("{{ down }}");
-            let totalLimit = parseValue("{{ total }}");
+    // Convert to MB for math
+    let upMB   = toMB(parseNum(upStr), unit(upStr));
+    let downMB = toMB(parseNum(downStr), unit(downStr));
+    let totalMB= toMB(parseNum(totalStr), unit(totalStr));
+    let usedMB = upMB + downMB;
+    let remainingMB = Math.max(totalMB - usedMB, 0);
+    let utilization = totalMB>0 ? (usedMB/totalMB*100) : 0;
 
-            // Convert all values to MB
-            uploaded = convertToMB(uploaded, uploadedUnit);
-            downloaded = convertToMB(downloaded, downloadedUnit);
-            totalLimit = convertToMB(totalLimit, totalLimitUnit);
+    // ===== Update quick badges =====
+    const fmt = (mb) => {
+      if (mb >= 1024*1024) return (mb/1024/1024).toFixed(2)+" TB";
+      if (mb >= 1024) return (mb/1024).toFixed(2)+" GB";
+      return mb.toFixed(2)+" MB";
+    };
+    document.getElementById("total-used-badge").textContent = fmt(usedMB);
+    document.getElementById("remaining-badge").textContent  = fmt(remainingMB);
+    document.getElementById("utilization-badge").textContent = utilization.toFixed(1)+"%";
 
-            // Calculate total usage (uploaded + downloaded)
-            let totalUsage = uploaded + downloaded;
+    // ===== Progress bars =====
+    function setBar(id, valueMB, maxMB){
+      const el = document.getElementById(id);
+      if (!el || maxMB<=0) return;
+      const p = Math.max(0, Math.min(100, valueMB/maxMB*100));
+      el.style.width = p + "%";
+      // color ramp
+      if (p <= 50) el.style.backgroundColor = "#05B031";
+      else if (p <= 80) el.style.backgroundColor = "#FFD700";
+      else if (p <= 98) el.style.backgroundColor = "#FFA500";
+      else el.style.backgroundColor = "#FF4D4D";
+    }
+    setTimeout(()=> {
+      setBar("uploaded-bar", upMB, totalMB);
+      setBar("downloaded-bar", downMB, totalMB);
+      setBar("limit-bar", usedMB, totalMB);
+    }, 300);
 
-            function setProgressBarColor(progressBar, percentage) {
-                if (percentage <= 50) {
-                    progressBar.style.backgroundColor = "#05B031"; // Green
-                } else if (percentage <= 80) {
-                    progressBar.style.backgroundColor = "#FFD700"; // Yellow
-                } else if (percentage <= 98) {
-                    progressBar.style.backgroundColor = "#FFA500"; // Orange
-                } else {
-                    progressBar.style.backgroundColor = "#FF0000"; // Red
-                }
-            }
+    // ===== Toggle handling =====
+    const toggle = document.getElementById("config-toggle");
+    const statusText = document.getElementById("status-text");
+    function applyStatusUI(enabled){
+      statusText.textContent = enabled ? "Enabled" : "Disabled";
+      statusText.style.color = enabled ? "#a9ffb9" : "#ffb0b0";
+      toggle.classList.toggle("active", enabled);
+    }
+    applyStatusUI(userStatus);
 
-            function animateProgressBar(id, value, max) {
-                let progressBar = document.getElementById(id);
-                if (!progressBar) {
-                    console.error(`Element with ID ${id} not found.`);
-                    return;
-                }
-                let percentage = (value / max) * 100; // Calculate percentage
-                progressBar.style.width = percentage + "%"; // Set width
-                setProgressBarColor(progressBar, percentage); // Set color
-            }
+    toggle.addEventListener("click", () => {
+      const next = !toggle.classList.contains("active");
+      applyStatusUI(next);
+      fetch("/update-status", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ status: next })
+      }).catch(()=>{});
+    });
 
-            // Animate progress bars based on usage
-            setTimeout(() => {
-                if (totalLimit > 0) {
-                    animateProgressBar("uploaded-bar", uploaded, totalLimit);
-                    animateProgressBar("downloaded-bar", downloaded, totalLimit);
-                    animateProgressBar("limit-bar", totalUsage, totalLimit);
-                }
-            }, 500);
+    // ===== Expiry gauge & copy =====
+    function daysUntil(dateStr){
+      const d = new Date(dateStr.replace(" ", "T")+"Z"); // treat as UTC
+      if (isNaN(d.getTime())) return null;
+      const now = new Date();
+      return Math.ceil((d.getTime()-now.getTime())/(1000*60*60*24));
+    }
+    const dLeft = daysUntil(expiryStr);
+    const expiryDesc = document.getElementById("expiry-desc");
+    if (dLeft===null){
+      expiryDesc.textContent = "Expiry date unavailable or invalid.";
+    } else if (dLeft < 0){
+      expiryDesc.innerHTML = `<span class="danger"><i class="fa-solid fa-circle-exclamation"></i> Expired ${Math.abs(dLeft)} day(s) ago</span>`;
+    } else {
+      expiryDesc.innerHTML = `<span class="${dLeft<=3?'danger': dLeft<=7?'warn':'ok'}">${dLeft} day(s) remaining</span>`;
+    }
 
-            // Get user status dynamically from backend
-            let configStatus = "{{ user_status }}".trim().toLowerCase() === "enabled";
+    // ===== Charts (ApexCharts) =====
+    // Summary (columns for Upload/Download + line for Remaining)
+    const summaryOptions = {
+      chart: { type: 'line', height: 260, foreColor:'#fff' },
+      stroke: { width: [0, 0, 3] },
+      series: [
+        { name:'Uploaded',  type:'column', data:[upMB] },
+        { name:'Downloaded',type:'column', data:[downMB] },
+        { name:'Remaining', type:'line',   data:[Math.max(remainingMB,0)] },
+      ],
+      colors: ['#4DD0E1','#9575CD','#A5D6A7'],
+      xaxis: { categories: ['Current'], labels:{style:{colors:'#fff'}} },
+      yaxis: { labels:{ formatter:(v)=> v>=1024? (v/1024).toFixed(1)+' GB' : v.toFixed(0)+' MB' } },
+      plotOptions: { bar:{ columnWidth:'45%', borderRadius:6 } },
+      dataLabels: { enabled:false },
+      tooltip: { shared:true,
+        y:{ formatter:(v)=> v>=1024? (v/1024).toFixed(2)+' GB' : v.toFixed(2)+' MB' }
+      },
+      grid: { borderColor: 'rgba(255,255,255,.15)' },
+      legend:{ position:'top' }
+    };
+    new ApexCharts(document.querySelector("#summary-chart"), summaryOptions).render();
 
-            let toggle = document.getElementById("config-toggle");
-            if (!toggle) {
-                console.error("Element with ID config-toggle not found.");
-            } else {
-                // Set initial toggle state
-                if (configStatus) {
-                    toggle.classList.add("active");
-                } else {
-                    toggle.classList.remove("active");
-                }
+    // Donut Breakdown (Up vs Down)
+    const breakdownOptions = {
+      chart: { type:'donut', height:220, foreColor:'#fff' },
+      series: [ upMB, downMB ],
+      labels: ['Upload','Download'],
+      colors: ['#29B6F6','#AB47BC'],
+      dataLabels: { enabled:true, formatter:(v)=> v.toFixed(1)+'%' },
+      legend:{ position:'bottom' },
+      tooltip:{ y:{ formatter:(v)=> v>=1024? (v/1024).toFixed(2)+' GB' : v.toFixed(2)+' MB' } },
+      stroke:{ width:0 },
+      plotOptions:{ pie:{ donut:{ size:'62%' } } }
+    };
+    new ApexCharts(document.querySelector("#breakdown"), breakdownOptions).render();
 
-                // Add click event listener to toggle
-                toggle.addEventListener("click", function () {
-                    this.classList.toggle("active");
-                    let newStatus = this.classList.contains("active");
-                    console.log("New status:", newStatus);
-
-                    // Send new status to the server (optional)
-                    fetch("/update-status", {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({ status: newStatus }),
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log("Status updated:", data);
-                    })
-                    .catch(error => {
-                        console.error("Error updating status:", error);
-                    });
-                });
-            }
-
-            // Debugging: Log values to the console
-            console.log("Uploaded: {{ up }}", uploaded);
-            console.log("Downloaded: {{ down }}", downloaded);
-            console.log("Total Limit: {{ total }}", totalLimit);
-            console.log("User Status: {{ user_status }}", configStatus);
-        });
-    </script>
+    // Radial Bar Gauge (Days to Expiry)
+    let pct = 100;
+    if (dLeft!==null){
+      // Assume 30-day cycles by default to get a simple "close to expiry" gauge
+      const clamp = (x,min,max)=> Math.max(min, Math.min(max, x));
+      pct = clamp( (1 - (dLeft/30))*100 , 0, 100); // nearer expiry => higher %
+    }
+    const gaugeOptions = {
+      chart: { type:'radialBar', height:220, foreColor:'#fff' },
+      series: [ pct ],
+      labels: ['Proximity to Expiry'],
+      colors: [ pct<60 ? '#7CB342' : (pct<85 ? '#FFC107' : '#EF5350') ],
+      plotOptions:{
+        radialBar:{
+          hollow:{ size:'58%' },
+          dataLabels:{
+            name:{ fontSize:'12px' },
+            value:{ formatter:(v)=> v.toFixed(0)+'%' }
+          }
+        }
+      }
+    };
+    new ApexCharts(document.querySelector("#expiry-gauge"), gaugeOptions).render();
+  </script>
 </body>
 </html>
