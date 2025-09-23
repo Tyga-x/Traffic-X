@@ -8,12 +8,10 @@ Traffic-X is a simple tool that allows users to monitor and manage their traffic
 ---
 ### How to Setup ⚙️
 
-- Before starting the installation, make sure you are in the correct directory. For example, ensure that you're in the `/home/ubuntu` directory (or the directory where you want to install Traffic-X). 
-
-- You can change to the correct directory with the following command:
+- 👉 To check your current OS username, run. 
 
 ```
-cd /home/ubuntu
+whoami
 ```
 To install Traffic-X, run the following command:
 ---
