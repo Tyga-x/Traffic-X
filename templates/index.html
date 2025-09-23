@@ -1,390 +1,305 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>X-SL USAGE</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        @keyframes gradientAnimation {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TRAFFIC-X</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    @keyframes gradientBackground {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
 
-        body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #6a1b9a, #263D9B, #742CA1, #009688);
-            background-size: 300% 300%;
-            animation: gradientAnimation 10s ease infinite;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            color: white;
-        }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1e1f26, #641B9F, #263D9B, #009688);
+      background-size: 400% 400%;
+      animation: gradientBackground 15s ease infinite;
+      color: #fff;
+    }
 
-        .container {
-            width: 90%;
-            max-width: 800px;
-            padding: 20px;
-            margin-bottom: 60px; /* Added margin to prevent footer overlap */
-        }
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      padding: 40px 20px;
+    }
 
-        h2 {
-            color: #fff;
-            margin-bottom: 20px;
-            text-align: center;
-            font-size: 24px;
-        }
+    h2 {
+      text-align: center;
+      font-size: 36px;
+      font-weight: bold;
+      margin-bottom: 40px;
+      letter-spacing: 2px;
+    }
 
-        .grid-container {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 20px;
-        }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
 
-        .grid-container:not(.two-column) {
-            margin-bottom: 30px; /* Added margin to separate the top box from the two boxes below */
-        }
+    @media (max-width: 992px) {
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
 
-        .grid-container.two-column {
-            grid-template-columns: 1fr 1fr;
-        }
+    @media (max-width: 600px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
 
-        .card {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
-        }
+    .card {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(12px);
+      transition: transform 0.2s ease;
+    }
 
-        .card h3 {
-            margin-top: 0;
-            font-size: 18px;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+    .card:hover {
+      transform: translateY(-5px);
+    }
 
-        .card h3 i {
-            font-size: 20px;
-        }
+    .card h3 {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 20px;
+      margin-bottom: 20px;
+    }
 
-        input {
-            padding: 10px;
-            width: calc(100% - 20px);
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 14px;
-            background-color: #fff;
-            color: #333;
-        }
+    .card h3 i {
+      font-size: 22px;
+    }
 
-        input:focus {
-            border-color: #007BFF;
-            outline: none;
-        }
+    /* ==== FORM FIX (applies on all screen sizes) ==== */
+    .card form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 10px;
+    }
 
-        button {
-            padding: 10px;
-            width: 100%;
-            background-color: #641B9F;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
+    .card input[type="text"] {
+      padding: 12px 14px;
+      font-size: 14px;
+      border: none;
+      border-radius: 8px;
+      width: 100%;
+      background-color: #fff;
+      color: #333;
+      box-sizing: border-box;
+    }
 
-        button:hover {
-            background-color: #0056b3;
-        }
+    .card button {
+      padding: 12px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 8px;
+      background-color: #05B031;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.3s;
+      border: none;
+    }
 
-        button:active {
-            background-color: #004085;
-        }
+    .card button:hover {
+      background-color: #049428;
+    }
 
-        .resource-item {
-            margin-bottom: 10px;
-        }
+    .progress-container {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 5px;
+      height: 10px;
+      overflow: hidden;
+      margin-top: 5px;
+    }
 
-        .resource-item h4 {
-            margin: 0 0 5px;
-            font-size: 14px;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+    .progress-bar {
+      height: 100%;
+      background-color: #05B031;
+      transition: width 0.5s ease-in-out;
+    }
 
-        .resource-item h4 i {
-            font-size: 16px;
-        }
+    .ping-result, .server-status, .uptime-status {
+      margin-top: 10px;
+      font-size: 14px;
+    }
 
-        .progress-container {
-            width: 100%;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 5px;
-            overflow: hidden;
-            margin-top: 5px;
-        }
+    .safeguard-bubble {
+      background-color: rgba(5, 176, 49, 0.15);
+      border: 2px dashed #05B031;
+      padding: 15px;
+      border-radius: 20px;
+      text-align: center;
+    }
 
-        .progress-bar {
-            height: 6px;
-            width: 0%;
-            background: #05B031;
-            transition: width 1.5s ease-in-out;
-        }
+    .safeguard-bubble i {
+      font-size: 24px;
+      margin-bottom: 10px;
+      color: #05B031;
+    }
 
-        .ping-tool {
-            text-align: center;
-        }
+    .footer {
+      text-align: center;
+      font-size: 14px;
+      color: #bbb;
+      margin-top: 50px;
+    }
 
-        .ping-tool button {
-            padding: 8px 16px;
-            font-size: 14px;
-            background-color: #05B031;
-        }
+    .social-icons {
+      margin-top: 10px;
+    }
 
-        .ping-tool button:hover {
-            background-color: #049428;
-        }
+    .social-icons a {
+      color: white;
+      margin: 0 10px;
+      font-size: 18px;
+      transition: transform 0.3s;
+    }
 
-        /* Ping Result Styling */
-        .ping-result {
-            margin-top: 15px; /* Added margin to separate from the button */
-            margin-bottom: 15px; /* Added margin to separate from Server Location */
-            font-size: 14px;
-            color: #fff;
-            background: rgba(5, 176, 49, 0.2); /* Light green background */
-            padding: 8px 12px;
-            border-radius: 5px;
-            display: inline-block;
-            border: 1px solid rgba(5, 176, 49, 0.5); /* Green border */
-        }
-
-        .server-location {
-            margin-top: 15px; /* Added margin to separate from Ping Result */
-            font-size: 14px;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .server-location i {
-            font-size: 16px;
-        }
-
-        .server-status {
-            margin-top: 10px;
-            font-size: 14px;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .server-status i {
-            font-size: 16px;
-        }
-
-        /* Footer Styling */
-        .footer {
-            font-size: 12px;
-            color: #868e96;
-            margin-top: 20px;
-            text-align: center;
-            width: 100%;
-            padding: 10px 0;
-            position: relative; /* Changed to relative */
-            bottom: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .footer .social-icons {
-            display: flex;
-            gap: 10px;
-        }
-
-        .footer .social-icons a {
-            color: white;
-            font-size: 16px;
-            transition: color 0.3s ease, transform 0.3s ease;
-        }
-
-        .footer .social-icons a:hover {
-            color: #05B031;
-            transform: scale(1.2);
-        }
-
-        @media (max-width: 600px) {
-            h2 {
-                font-size: 20px;
-            }
-
-            .grid-container.two-column {
-                grid-template-columns: 1fr;
-            }
-
-            .card {
-                padding: 15px;
-            }
-
-            .card h3 {
-                font-size: 16px;
-            }
-
-            input {
-                font-size: 12px;
-            }
-
-            button {
-                font-size: 12px;
-            }
-
-            .resource-item h4 {
-                font-size: 12px;
-            }
-
-            .ping-tool button {
-                font-size: 12px;
-            }
-
-            .ping-result {
-                font-size: 12px;
-            }
-
-            .footer {
-                font-size: 10px;
-            }
-
-            .footer .social-icons a {
-                font-size: 14px;
-            }
-        }
-    </style>
+    .social-icons a:hover {
+      transform: scale(1.2);
+      color: #05B031;
+    }
+  </style>
 </head>
 <body>
+  <div class="container">
+    <h2>TRAFFIC-X</h2>
 
-    <div class="container">
-        <h2>Check Your Usage</h2>
+    <div class="grid">
+      <!-- User Input -->
+      <div class="card">
+        <h3><i class="fas fa-user"></i>User Name</h3>
+        <form id="user-form" action="/usage" method="POST">
+          <input type="text" name="user_input" placeholder="Enter User Name" required />
+          <button type="submit">Check Usage</button>
+        </form>
+      </div>
 
-        <!-- Top Box: Enter User Details -->
-        <div class="grid-container">
-            <div class="card">
-                <h3><i class="fas fa-user" aria-label="User"></i>Enter User Details</h3>
-                <form id="user-form" action="/usage" method="POST">
-                    <input type="text" name="user_input" placeholder="Enter User Name" required>
-                    <button type="submit">Check Usage</button>
-                </form>
-            </div>
+      <!-- Server Resource Usage -->
+      <div class="card">
+        <h3><i class="fas fa-server"></i>Server Usage</h3>
+        <p>CPU: <span id="cpu-usage">25%</span></p>
+        <div class="progress-container"><div class="progress-bar" id="cpu-progress" style="width: 25%;"></div></div>
+
+        <p>Memory: <span id="memory-usage">25%</span></p>
+        <div class="progress-container"><div class="progress-bar" id="memory-progress" style="width: 25%;"></div></div>
+
+        <p>Disk: <span id="disk-usage">25%</span></p>
+        <div class="progress-container"><div class="progress-bar" id="disk-progress" style="width: 25%;"></div></div>
+      </div>
+
+      <!-- Ping Test -->
+      <div class="card">
+        <h3><i class="fas fa-wifi"></i>Ping Test</h3>
+        <button id="ping-button">Ping Server</button>
+        <div class="ping-result" id="ping-result">Ping: -</div>
+        <div class="server-status">
+          <i class="fas fa-map-marker-alt"></i> Location: <strong id="server-location">--</strong>
         </div>
-
-        <!-- Two Boxes Below: Server Resources and Ping Test -->
-        <div class="grid-container two-column">
-            <!-- Left Box: Server Resources -->
-            <div class="card">
-                <h3><i class="fas fa-server" aria-label="Server"></i>Server Resources</h3>
-                <div class="resource-item">
-                    <h4><i class="fas fa-microchip" aria-label="CPU"></i>CPU Usage</h4>
-                    <p id="cpu-usage">25%</p>
-                    <div class="progress-container">
-                        <div class="progress-bar" id="cpu-progress" style="width: 25%;"></div>
-                    </div>
-                </div>
-                <div class="resource-item">
-                    <h4><i class="fas fa-memory" aria-label="Memory"></i>Memory Usage</h4>
-                    <p id="memory-usage">4 GB / 16 GB (25%)</p>
-                    <div class="progress-container">
-                        <div class="progress-bar" id="memory-progress" style="width: 25%;"></div>
-                    </div>
-                </div>
-                <div class="resource-item">
-                    <h4><i class="fas fa-hdd" aria-label="Disk"></i>Disk Usage</h4>
-                    <p id="disk-usage">50 GB / 200 GB (25%)</p>
-                    <div class="progress-container">
-                        <div class="progress-bar" id="disk-progress" style="width: 25%;"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right Box: Ping Test -->
-            <div class="card ping-tool">
-                <h3><i class="fas fa-network-wired" aria-label="Ping"></i>Ping Test</h3>
-                <button id="ping-button">Ping Server</button>
-                <div class="ping-result" id="ping-result">Ping: -</div>
-                <div class="server-location">
-                    <i class="fas fa-map-marker-alt" aria-label="Location"></i>
-                    <span>Server Location: <strong id="server-location">New York, USA</strong></span>
-                </div>
-                <!-- Moved Server Status Here -->
-                <div class="server-status">
-                    <i class="fas fa-heartbeat" aria-label="Status"></i>
-                    <span>Server Status: <strong id="server-status">Online</strong></span>
-                </div>
-            </div>
+        <div class="server-status">
+          <i class="fas fa-heartbeat"></i> Status: <strong id="server-status">Online</strong>
         </div>
+      </div>
+
+      <!-- Network Traffic -->
+      <div class="card">
+        <h3><i class="fas fa-exchange-alt"></i>Network Traffic</h3>
+        <p>Download: <strong id="download-traffic">10 Mbps</strong></p>
+        <p>Upload: <strong id="upload-traffic">2 Mbps</strong></p>
+        <div class="uptime-status">
+          <i class="fas fa-clock"></i> Uptime: <strong id="uptime">99.98%</strong>
+        </div>
+      </div>
+
+      <!-- Cloud Provider -->
+      <div class="card">
+        <h3><i class="fas fa-cloud"></i>Cloud Provider</h3>
+        <p>Hosted on: <strong id="cloud-provider">Detecting...</strong></p>
+      </div>
+
+      <!-- Safeguard Bubble -->
+      <div class="card">
+        <h3><i class="fas fa-shield-alt"></i>Server Safeguard</h3>
+        <div class="safeguard-bubble">
+          <i class="fas fa-lock"></i><br>
+          <span>Active Firewall & DDoS Protection</span>
+        </div>
+      </div>
     </div>
 
     <!-- Footer -->
     <div class="footer">
-        <p>&copy; 2025 Traffic-X. All rights reserved.</p>
-        <div class="social-icons">
-            <a href="https://www.tiktok.com/" target="_blank" aria-label="TikTok"><i class="fab fa-tiktok"></i></a>
-            <a href="https://t.me/Xray_SL" target="_blank" aria-label="Telegram"><i class="fab fa-telegram"></i></a>
-            <a href="https://www.youtube.com/" target="_blank" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
-        </div>
+      <p>&copy; 2025 Traffic-X. All rights reserved.</p>
+      <div class="social-icons">
+        <a href="https://github.com/Tyga-x/Traffic-X" target="_blank"><i class="fab fa-github"></i></a>
+      </div>
     </div>
+  </div>
 
-    <script>
-        // Real-Time Ping Tool
-        const pingButton = document.getElementById("ping-button");
-        const pingResult = document.getElementById("ping-result");
+  <script>
+    // Ping logic
+    document.getElementById("ping-button").addEventListener("click", async () => {
+      const start = Date.now();
+      const result = document.getElementById("ping-result");
+      result.textContent = "Pinging...";
 
-        pingButton.addEventListener("click", async () => {
-            const startTime = Date.now();
-            pingResult.textContent = "Pinging...";
+      try {
+        await fetch("/ping");
+        const latency = Date.now() - start;
+        result.textContent = `Ping: ${latency} ms`;
+      } catch {
+        result.textContent = "Ping failed";
+      }
+    });
 
-            try {
-                const response = await fetch("/ping"); // Replace with your ping endpoint
-                const endTime = Date.now();
-                const pingTime = endTime - startTime;
-                pingResult.textContent = `Ping: ${pingTime} ms`;
-            } catch (error) {
-                pingResult.textContent = "Ping failed";
-            }
-        });
+    // Server data updates
+    setInterval(async () => {
+      try {
+        const res = await fetch("/server-status");
+        const data = await res.json();
+        document.getElementById("cpu-usage").textContent = `${data.cpu}%`;
+        document.getElementById("memory-usage").textContent = `${data.ram}%`;
+        document.getElementById("disk-usage").textContent = `${data.disk}%`;
 
-        // Real-Time Server Resource Updates
-        setInterval(async () => {
-            const response = await fetch("/server-status");
-            const data = await response.json();
-            document.getElementById("cpu-usage").textContent = `${data.cpu}%`;
-            document.getElementById("cpu-progress").style.width = `${data.cpu}%`;
-            document.getElementById("memory-usage").textContent = `${data.ram}%`;
-            document.getElementById("memory-progress").style.width = `${data.ram}%`;
-            document.getElementById("disk-usage").textContent = `${data.disk}%`;
-            document.getElementById("disk-progress").style.width = `${data.disk}%`;
-        }, 1000);
+        document.getElementById("cpu-progress").style.width = `${data.cpu}%`;
+        document.getElementById("memory-progress").style.width = `${data.ram}%`;
+        document.getElementById("disk-progress").style.width = `${data.disk}%`;
+      } catch (e) {
+        console.error("Status fetch failed");
+      }
+    }, 2000);
 
-        // Fetch Server Location
-        (async () => {
-            const response = await fetch("/server-location");
-            const data = await response.json();
-            document.getElementById("server-location").textContent = `${data.city}, ${data.country}`;
-        })();
-    </script>
+    // Fetch server location
+    (async () => {
+      try {
+        const res = await fetch("/server-location");
+        const loc = await res.json();
+        document.getElementById("server-location").textContent = `${loc.city}, ${loc.country}`;
+      } catch {
+        document.getElementById("server-location").textContent = "Unavailable";
+      }
+    })();
 
+    // Fetch cloud provider name
+    (async () => {
+      try {
+        const res = await fetch("/cloud-provider");
+        const data = await res.json();
+        document.getElementById("cloud-provider").textContent = data.provider || "Unknown";
+      } catch {
+        document.getElementById("cloud-provider").textContent = "Unavailable";
+      }
+    })();
+  </script>
 </body>
 </html>
