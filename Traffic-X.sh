@@ -137,7 +137,7 @@ else
     fi
 fi
 
-# Generate app.py with SSL context handling (optional, only if needed)
+# Generate app.py with new features (server metrics, network traffic, provider detection)
 cat > app.py <<EOL
 from flask import Flask, request, render_template, jsonify
 import sqlite3
@@ -145,9 +145,10 @@ import json
 import psutil
 import requests
 from datetime import datetime
+import os
 
 app = Flask(__name__)
-db_path = "/etc/x-ui/x-ui.db"  # Adjust path if necessary
+db_path = os.getenv("DB_PATH", "/etc/x-ui/x-ui.db")
 
 def convert_bytes(byte_size):
     """Convert bytes to a human-readable format (MB, GB, TB)."""
@@ -171,16 +172,15 @@ def home():
 @app.route('/usage', methods=['POST'])
 def usage():
     try:
-        user_input = request.form.get('user_input')  # Get input from the form
+        user_input = request.form.get('user_input')
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        # Query to fetch client data
-        query = '''SELECT email, up, down, total, expiry_time, inbound_id FROM client_traffics WHERE email = ? OR id = ?'''
+        query = '''SELECT email, up, down, total, expiry_time, inbound_id 
+                   FROM client_traffics WHERE email = ? OR id = ?'''
         cursor.execute(query, (user_input, user_input))
         row = cursor.fetchone()
         if row:
             email, up, down, total, expiry_time, inbound_id = row
-            # **Fixed expiry time handling**
             expiry_date = "Invalid Date"
             if expiry_time and isinstance(expiry_time, (int, float)):
                 expiry_timestamp = expiry_time / 1000 if expiry_time > 9999999999 else expiry_time
@@ -188,12 +188,11 @@ def usage():
                     expiry_date = datetime.utcfromtimestamp(expiry_timestamp).strftime('%Y-%m-%d %H:%M:%S')
                 except (ValueError, OSError):
                     expiry_date = "Invalid Date"
-            # Query to fetch totalGB and user-specific enable status
             inbound_query = '''SELECT settings FROM inbounds WHERE id = ?'''
             cursor.execute(inbound_query, (inbound_id,))
             inbound_row = cursor.fetchone()
             totalGB = "Not Available"
-            user_status = "Disabled"  # Default to "Disabled" if user is not found
+            user_status = "Disabled"
             if inbound_row:
                 settings = inbound_row[0]
                 try:
@@ -206,21 +205,18 @@ def usage():
                 except json.JSONDecodeError:
                     totalGB = "Invalid JSON Data"
             conn.close()
-            # Convert to human-readable format
             up = convert_bytes(up)
             down = convert_bytes(down)
             total = convert_bytes(total)
             totalGB = convert_bytes(totalGB) if totalGB != "Not Available" else totalGB
-            return render_template(
-                'result.html',
-                email=email,
-                up=up,
-                down=down,
-                total=total,
-                expiry_date=expiry_date,
-                totalGB=totalGB,
-                user_status=user_status
-            )
+            return render_template('result.html',
+                                   email=email,
+                                   up=up,
+                                   down=down,
+                                   total=total,
+                                   expiry_date=expiry_date,
+                                   totalGB=totalGB,
+                                   user_status=user_status)
         else:
             conn.close()
             return "No data found for this user."
@@ -231,8 +227,7 @@ def usage():
 def update_status():
     try:
         data = request.get_json()
-        new_status = data.get('status')  # True or False
-        # Update the status in the database (implement this logic)
+        new_status = data.get('status')
         print(f"Updating status to: {new_status}")
         return jsonify({"status": "success", "message": "Status updated"})
     except Exception as e:
@@ -240,12 +235,15 @@ def update_status():
 
 @app.route('/server-status')
 def server_status():
-    """Returns real-time CPU, RAM, and Disk usage."""
+    """Returns CPU, RAM, Disk usage, and Network traffic."""
     try:
+        net_io = psutil.net_io_counters()
         status = {
             "cpu": psutil.cpu_percent(interval=1),
             "ram": psutil.virtual_memory().percent,
-            "disk": psutil.disk_usage('/').percent
+            "disk": psutil.disk_usage('/').percent,
+            "net_sent": convert_bytes(net_io.bytes_sent),
+            "net_recv": convert_bytes(net_io.bytes_recv)
         }
         return jsonify(status)
     except Exception as e:
@@ -253,7 +251,6 @@ def server_status():
 
 @app.route('/server-location')
 def server_location():
-    """Fetches server location based on public IP."""
     try:
         response = requests.get("http://ip-api.com/json/")
         data = response.json()
@@ -265,9 +262,28 @@ def server_location():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/cloud-provider')
+def cloud_provider():
+    """Detect cloud provider from sys_vendor if available."""
+    try:
+        provider = "Unknown"
+        if os.path.exists("/sys/class/dmi/id/sys_vendor"):
+            with open("/sys/class/dmi/id/sys_vendor", "r") as f:
+                vendor = f.read().strip().lower()
+                if "amazon" in vendor:
+                    provider = "AWS"
+                elif "digital" in vendor:
+                    provider = "DigitalOcean"
+                elif "linode" in vendor:
+                    provider = "Linode"
+                elif "google" in vendor:
+                    provider = "Google Cloud"
+        return jsonify({"provider": provider})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/ping')
 def ping():
-    """Endpoint for ping test."""
     return jsonify({"status": "success", "message": "Pong!"})
 
 if __name__ == '__main__':
