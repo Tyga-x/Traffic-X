@@ -1,174 +1,248 @@
 #!/bin/bash
-# @fileOverview Check usage stats of X-SL
-# @author MasterHide
-# @Copyright © 2025 x404 MASTER™
-# @license MIT
-#
-# You may not reproduce or distribute this work, in whole or in part, 
-# without the express written consent of the copyright owner.
-#
-# For more information, visit: https://t.me/Dark_Evi
+# Traffic-X unified installer for X-UI (SQLite) and Blitz (MongoDB)
+# © 2025 x404 MASTER™ — MIT
 
-# Function to display the menu
+set -e
+
 show_menu() {
-    echo "Welcome to Traffic-X Installer/Uninstaller"
-    echo "Please choose an option:"
-    echo "1. Run Traffic-X (Install)"
-    echo "2. Uninstall Traffic-X"
-    echo "3. Exit"
+  echo "Welcome to Traffic-X Installer/Uninstaller"
+  echo "Please choose an option:"
+  echo "1. Run Traffic-X (Install)"
+  echo "2. Uninstall Traffic-X"
+  echo "3. Exit"
 }
 
-# Main menu logic
 while true; do
-    show_menu
-    read -p "Enter your choice [1-3]: " CHOICE
-    case $CHOICE in
-        1)
-            echo "Proceeding with Traffic-X installation..."
-            break
-            ;;
-        2)
-            echo "Uninstalling Traffic-X..."
-            bash <(curl -s https://raw.githubusercontent.com/Tyga-x/Traffic-X/main/rm-TX.sh)
-            echo "Traffic-X has been uninstalled."
-            exit 0
-            ;;
-        3)
-            echo "Exiting..."
-            exit 0
-            ;;
-        *)
-            echo "Invalid choice. Please select a valid option [1-3]."
-            ;;
-    esac
+  show_menu
+  read -p "Enter your choice [1-3]: " CHOICE
+  case $CHOICE in
+    1) echo "Proceeding with Traffic-X installation..."; break ;;
+    2) echo "Uninstalling Traffic-X..."
+       bash <(curl -s https://raw.githubusercontent.com/Tyga-x/Traffic-X/main/rm-TX.sh)
+       echo "Traffic-X has been uninstalled."; exit 0 ;;
+    3) echo "Exiting..."; exit 0 ;;
+    *) echo "Invalid choice. Please select a valid option [1-3]." ;;
+  esac
 done
 
-# Ask user for necessary information
-echo "Enter your OS username (e.g., ubuntu):"
-read USERNAME
-echo "Enter your server domain (e.g.your_domain.com):"
-read SERVER_IP
-echo "Enter the port (default: 5000):"
-read PORT
+echo "Choose panel to integrate:"
+echo "1) X-UI (default)"
+echo "2) Blitz (Hysteria) Panel"
+read -p "Enter [1-2]: " PANEL_CHOICE
+if [ "$PANEL_CHOICE" = "2" ]; then
+  PANEL="blitz"
+else
+  PANEL="xui"
+fi
+echo "Selected PANEL: $PANEL"
+
+read -p "Enter your OS username (e.g., ubuntu): " USERNAME
+read -p "Enter your server domain (e.g. your_domain.com): " SERVER_IP
+read -p "Enter the port (default: 5000): " PORT
 PORT=${PORT:-5000}
 
-# Ask user for the version to install
-echo "Enter the version to install (e.g., v1.0.1) or leave blank for the latest version:"
-read VERSION
-if [ -z "$VERSION" ]; then
-    VERSION="latest"
-fi
+read -p "Enter the version to install (e.g., v1.0.1) or leave blank for latest: " VERSION
+if [ -z "$VERSION" ]; then VERSION="latest"; fi
 
-# Install required dependencies
 echo "Updating packages..."
 sudo apt update
 
-# Install Python3, pip, git, socat, and other required dependencies
 echo "Installing required dependencies..."
 sudo apt install -y python3-pip python3-venv git sqlite3 socat unzip curl
 
-# Construct the download URL based on the version
 echo "Downloading Traffic-X version $VERSION..."
 if [ "$VERSION" == "latest" ]; then
-    DOWNLOAD_URL="https://github.com/Tyga-x/Traffic-X/archive/refs/heads/main.zip"
+  DOWNLOAD_URL="https://github.com/Tyga-x/Traffic-X/archive/refs/heads/main.zip"
 else
-    DOWNLOAD_URL="https://github.com/Tyga-x/Traffic-X/archive/refs/tags/$VERSION.zip"
+  DOWNLOAD_URL="https://github.com/Tyga-x/Traffic-X/archive/refs/tags/$VERSION.zip"
 fi
 
 cd /home/$USERNAME
 if curl -L "$DOWNLOAD_URL" -o Traffic-X.zip; then
-    echo "Download successful. Extracting files..."
-    unzip -o Traffic-X.zip -d /home/$USERNAME
-    EXTRACTED_DIR=$(ls /home/$USERNAME | grep "Traffic-X-" | head -n 1)
-    mv "/home/$USERNAME/$EXTRACTED_DIR" /home/$USERNAME/Traffic-X
-    rm Traffic-X.zip
+  echo "Extracting files..."
+  unzip -o Traffic-X.zip -d /home/$USERNAME
+  EXTRACTED_DIR=$(ls /home/$USERNAME | grep "Traffic-X-" | head -n 1)
+  mv "/home/$USERNAME/$EXTRACTED_DIR" /home/$USERNAME/Traffic-X
+  rm Traffic-X.zip
 else
-    echo "Failed to download Traffic-X version $VERSION. Exiting."
-    exit 1
+  echo "Failed to download Traffic-X version $VERSION. Exiting."
+  exit 1
 fi
 
-# Verify the templates directory exists
 if [ -d "/home/$USERNAME/Traffic-X/templates" ]; then
-    echo "Templates directory found."
+  echo "Templates directory found."
 else
-    echo "Templates directory not found. Exiting."
-    exit 1
+  echo "Templates directory not found. Exiting."
+  exit 1
 fi
 
-# Set up a virtual environment
-echo "Setting up the Python virtual environment..."
+echo "Setting up Python virtual environment..."
 cd /home/$USERNAME/Traffic-X
 python3 -m venv venv
 source venv/bin/activate
 
-# Install Flask, Gunicorn, and any other required Python libraries
 echo "Installing Flask, Gunicorn, and dependencies..."
 pip install --upgrade pip
 pip install flask gunicorn psutil requests
 
-# Configure the Flask app to run on the specified port
-echo "Configuring Flask app..."
+# Blitz needs pymongo (safe to install always)
+if [ "$PANEL" = "blitz" ]; then
+  pip install pymongo
+fi
+
+echo "Configuring domain..."
 export DOMAIN=$SERVER_IP
 
-# Create a custom directory for SSL certificates
+# SSL folder
 mkdir -p /var/lib/Traffic-X/certs
 sudo chown -R $USERNAME:$USERNAME /var/lib/Traffic-X/certs
 
-# Check if valid certificate already exists
+# SSL check / creation
 if [ -f "/var/lib/Traffic-X/certs/$DOMAIN.cer" ] && [ -f "/var/lib/Traffic-X/certs/$DOMAIN.cer.key" ]; then
-    echo "Valid SSL certificate already exists."
-    SSL_CONTEXT="--certfile=/var/lib/Traffic-X/certs/$DOMAIN.cer --keyfile=/var/lib/Traffic-X/certs/$DOMAIN.cer.key"
+  echo "Valid SSL certificate already exists."
+  SSL_CONTEXT="--certfile=/var/lib/Traffic-X/certs/$DOMAIN.cer --keyfile=/var/lib/Traffic-X/certs/$DOMAIN.cer.key"
 else
-    echo "Generating SSL certificate..."
-    curl https://get.acme.sh | sh -s email=$USERNAME@$SERVER_IP
-    ~/.acme.sh/acme.sh --issue --force --standalone -d "$DOMAIN" \
-        --fullchain-file "/var/lib/Traffic-X/certs/$DOMAIN.cer" \
-        --key-file "/var/lib/Traffic-X/certs/$DOMAIN.cer.key"
-    # Fix ownership of the generated certificates
-    sudo chown $USERNAME:$USERNAME /var/lib/Traffic-X/certs/$DOMAIN.cer
-    sudo chown $USERNAME:$USERNAME /var/lib/Traffic-X/certs/$DOMAIN.cer.key
-    # Verify certificate generation
-    if [ ! -f "/var/lib/Traffic-X/certs/$DOMAIN.cer" ] || [ ! -f "/var/lib/Traffic-X/certs/$DOMAIN.cer.key" ]; then
-        echo "Failed to generate SSL certificates. Disabling SSL."
-        SSL_CONTEXT=""
-    else
-        echo "SSL certificates generated successfully."
-        SSL_CONTEXT="--certfile=/var/lib/Traffic-X/certs/$DOMAIN.cer --keyfile=/var/lib/Traffic-X/certs/$DOMAIN.cer.key"
-    fi
+  echo "Generating SSL certificate..."
+  curl https://get.acme.sh | sh -s email=$USERNAME@$SERVER_IP
+  ~/.acme.sh/acme.sh --issue --force --standalone -d "$DOMAIN" \
+    --fullchain-file "/var/lib/Traffic-X/certs/$DOMAIN.cer" \
+    --key-file "/var/lib/Traffic-X/certs/$DOMAIN.cer.key" || true
+  sudo chown $USERNAME:$USERNAME /var/lib/Traffic-X/certs/$DOMAIN.cer || true
+  sudo chown $USERNAME:$USERNAME /var/lib/Traffic-X/certs/$DOMAIN.cer.key || true
+  if [ ! -f "/var/lib/Traffic-X/certs/$DOMAIN.cer" ] || [ ! -f "/var/lib/Traffic-X/certs/$DOMAIN.cer.key" ]; then
+    echo "Failed to generate SSL certificates. Disabling SSL."
+    SSL_CONTEXT=""
+  else
+    echo "SSL certificates generated successfully."
+    SSL_CONTEXT="--certfile=/var/lib/Traffic-X/certs/$DOMAIN.cer --keyfile=/var/lib/Traffic-X/certs/$DOMAIN.cer.key"
+  fi
 fi
 
-# app.py with new features (server metrics, network traffic, provider detection)
-cat > app.py <<EOL
+# Generate app.py (unified, switches by PANEL)
+cat > app.py <<'EOL'
 from flask import Flask, request, render_template, jsonify
-import sqlite3
-import json
-import psutil
-import requests
+import sqlite3, json, psutil, requests, os
 from datetime import datetime
-import os
-
-# NEW: imports for live throughput and optional per-connection snapshot
-import time
-import shutil
-import subprocess
 
 app = Flask(__name__)
-db_path = os.getenv("DB_PATH", "/etc/x-ui/x-ui.db")
+PANEL = os.getenv("PANEL", "xui").lower()
+db_path = os.getenv("DB_PATH", "/etc/x-ui/x-ui.db")  # X-UI default
+PORT = int(os.getenv("PORT", "5000"))
 
 def convert_bytes(byte_size):
-    """Convert bytes to a human-readable format (MB, GB, TB)."""
-    if byte_size is None:
-        return "0 Bytes"
-    if byte_size < 1024:
-        return f"{byte_size} Bytes"
-    elif byte_size < 1024 * 1024:
-        return f"{round(byte_size / 1024, 2)} KB"
-    elif byte_size < 1024 * 1024 * 1024:
-        return f"{round(byte_size / (1024 * 1024), 2)} MB"
-    elif byte_size < 1024 * 1024 * 1024 * 1024:
-        return f"{round(byte_size / (1024 * 1024 * 1024), 2)} GB"
-    else:
-        return f"{round(byte_size / (1024 * 1024 * 1024 * 1024), 2)} TB"
+    if byte_size is None: return "0 Bytes"
+    if byte_size < 1024: return f"{byte_size} Bytes"
+    if byte_size < 1024*1024: return f"{round(byte_size/1024,2)} KB"
+    if byte_size < 1024*1024*1024: return f"{round(byte_size/(1024*1024),2)} MB"
+    if byte_size < 1024*1024*1024*1024: return f"{round(byte_size/(1024*1024*1024),2)} GB"
+    return f"{round(byte_size/(1024*1024*1024*1024),2)} TB"
+
+def _ts_to_str(ts):
+    if not ts: return "Invalid Date"
+    try:
+        n = float(ts); 
+        if n > 9999999999: n /= 1000.0
+        return datetime.utcfromtimestamp(n).strftime('%Y-%m-%d %H:%M:%S')
+    except Exception:
+        pass
+    try:
+        return datetime.fromisoformat(str(ts).replace("Z","").replace("T"," ")).strftime('%Y-%m-%d %H:%M:%S')
+    except Exception:
+        return "Invalid Date"
+
+def fetch_usage_xui(user_input):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    q = '''SELECT email, up, down, total, expiry_time, inbound_id
+           FROM client_traffics WHERE email = ? OR id = ?'''
+    cursor.execute(q, (user_input, user_input))
+    row = cursor.fetchone()
+    if not row:
+        conn.close(); return None
+    email, up, down, total, expiry_time, inbound_id = row
+    expiry_date = _ts_to_str(expiry_time)
+
+    cursor.execute('SELECT settings FROM inbounds WHERE id = ?', (inbound_id,))
+    inbound_row = cursor.fetchone()
+    totalGB = "Not Available"; user_status = "Disabled"
+    if inbound_row:
+        settings = inbound_row[0]
+        try:
+            inbound_data = json.loads(settings)
+            for c in inbound_data.get('clients', []):
+                if c.get('email') == email:
+                    totalGB = c.get('totalGB', "Not Available")
+                    user_status = "Enabled" if c.get('enable', True) else "Disabled"
+                    break
+        except json.JSONDecodeError:
+            totalGB = "Invalid JSON Data"
+    conn.close()
+    return {
+        "email": email,
+        "up": convert_bytes(up),
+        "down": convert_bytes(down),
+        "total": convert_bytes(total),
+        "expiry_date": expiry_date,
+        "totalGB": convert_bytes(totalGB) if isinstance(totalGB,(int,float)) else totalGB,
+        "user_status": user_status
+    }
+
+def fetch_usage_blitz(user_input):
+    try:
+        from pymongo import MongoClient
+    except Exception:
+        return None
+    uri = os.getenv("MONGO_URI","mongodb://127.0.0.1:27017")
+    dbn = os.getenv("MONGO_DB","blitz_panel")
+    coln= os.getenv("MONGO_COLLECTION","users")
+    client = MongoClient(uri, serverSelectionTimeoutMS=1500)
+    try:
+        client.admin.command("ping")
+    except Exception:
+        return None
+    col = client[dbn][coln]
+    doc = col.find_one({"$or":[
+        {"email": str(user_input)},
+        {"id": str(user_input)},
+        {"username": str(user_input)},
+        {"name": str(user_input)}
+    ]})
+    if not doc:
+        return None
+
+    def pick(d,*names,default=None):
+        for n in names:
+            if n in d and d[n] is not None: return d[n]
+        for n in names:
+            cur=d; ok=True
+            for p in n.split("."):
+                if isinstance(cur,dict) and p in cur: cur=cur[p]
+                else: ok=False; break
+            if ok and cur is not None: return cur
+        return default
+    def to_int(x):
+        try:
+            if x is None: return 0
+            if isinstance(x,(int,float)): return int(x)
+            return int(float(str(x)))
+        except: return 0
+
+    up_raw    = to_int(pick(doc,"up","upload","u","traffic.up",default=0))
+    down_raw  = to_int(pick(doc,"down","download","d","traffic.down",default=0))
+    total_raw = to_int(pick(doc,"total","quota","limit","traffic.total",default=0))
+    enabled   = bool(pick(doc,"enable","enabled","active",default=True))
+    expiry    = pick(doc,"expiry_time","expiry","expire","expire_at","expireAt",default=None)
+    ident     = str(pick(doc,"email","id","username","name",default=user_input))
+
+    return {
+        "email": ident,
+        "up": convert_bytes(up_raw),
+        "down": convert_bytes(down_raw),
+        "total": convert_bytes(total_raw),
+        "expiry_date": _ts_to_str(expiry),
+        "totalGB": "Not Available",
+        "user_status": "Enabled" if enabled else "Disabled",
+    }
 
 @app.route('/')
 def home():
@@ -178,53 +252,9 @@ def home():
 def usage():
     try:
         user_input = request.form.get('user_input')
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        query = '''SELECT email, up, down, total, expiry_time, inbound_id 
-                   FROM client_traffics WHERE email = ? OR id = ?'''
-        cursor.execute(query, (user_input, user_input))
-        row = cursor.fetchone()
-        if row:
-            email, up, down, total, expiry_time, inbound_id = row
-            expiry_date = "Invalid Date"
-            if expiry_time and isinstance(expiry_time, (int, float)):
-                expiry_timestamp = expiry_time / 1000 if expiry_time > 9999999999 else expiry_time
-                try:
-                    expiry_date = datetime.utcfromtimestamp(expiry_timestamp).strftime('%Y-%m-%d %H:%M:%S')
-                except (ValueError, OSError):
-                    expiry_date = "Invalid Date"
-            inbound_query = '''SELECT settings FROM inbounds WHERE id = ?'''
-            cursor.execute(inbound_query, (inbound_id,))
-            inbound_row = cursor.fetchone()
-            totalGB = "Not Available"
-            user_status = "Disabled"
-            if inbound_row:
-                settings = inbound_row[0]
-                try:
-                    inbound_data = json.loads(settings)
-                    for client in inbound_data.get('clients', []):
-                        if client.get('email') == email:
-                            totalGB = client.get('totalGB', "Not Available")
-                            user_status = "Enabled" if client.get('enable', True) else "Disabled"
-                            break
-                except json.JSONDecodeError:
-                    totalGB = "Invalid JSON Data"
-            conn.close()
-            up = convert_bytes(up)
-            down = convert_bytes(down)
-            total = convert_bytes(total)
-            totalGB = convert_bytes(totalGB) if totalGB != "Not Available" else totalGB
-            return render_template('result.html',
-                                   email=email,
-                                   up=up,
-                                   down=down,
-                                   total=total,
-                                   expiry_date=expiry_date,
-                                   totalGB=totalGB,
-                                   user_status=user_status)
-        else:
-            conn.close()
-            return "No data found for this user."
+        rec = fetch_usage_blitz(user_input) if PANEL == "blitz" else fetch_usage_xui(user_input)
+        if not rec: return "No data found for this user."
+        return render_template('result.html', **rec)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -232,173 +262,89 @@ def usage():
 def update_status():
     try:
         data = request.get_json()
-        new_status = data.get('status')
-        print(f"Updating status to: {new_status}")
-        return jsonify({"status": "success", "message": "Status updated"})
+        new_status = bool(data.get('status'))
+        # Optional persist for Blitz (needs user key sent from front-end)
+        if PANEL == "blitz":
+            try:
+                from pymongo import MongoClient
+                uri = os.getenv("MONGO_URI","mongodb://127.0.0.1:27017")
+                dbn = os.getenv("MONGO_DB","blitz_panel")
+                coln= os.getenv("MONGO_COLLECTION","users")
+                key = data.get('user')
+                if key:
+                    MongoClient(uri)[dbn][coln].update_one(
+                        {"$or":[{"email":key},{"id":key},{"username":key},{"name":key}]},
+                        {"$set":{"enable": new_status}}
+                    )
+            except Exception:
+                pass
+        return jsonify({"status":"success","message":"Status updated"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/server-status')
 def server_status():
-    """Returns CPU, RAM, Disk usage, and cumulative Network counters (since boot)."""
     try:
-        net_io = psutil.net_io_counters()
-        status = {
+        net = psutil.net_io_counters()
+        return jsonify({
             "cpu": psutil.cpu_percent(interval=1),
             "ram": psutil.virtual_memory().percent,
             "disk": psutil.disk_usage('/').percent,
-            "net_sent": convert_bytes(net_io.bytes_sent),
-            "net_recv": convert_bytes(net_io.bytes_recv)
-        }
-        return jsonify(status)
+            "net_sent": convert_bytes(net.bytes_sent),
+            "net_recv": convert_bytes(net.bytes_recv)
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/server-location')
 def server_location():
     try:
-        response = requests.get("http://ip-api.com/json/")
-        data = response.json()
-        return jsonify({
-            "country": data.get("country", "Unknown"),
-            "city": data.get("city", "Unknown"),
-            "ip": data.get("query", "Unknown")
-        })
+        r = requests.get("http://ip-api.com/json/")
+        d = r.json()
+        return jsonify({"country": d.get("country","Unknown"),
+                        "city": d.get("city","Unknown"),
+                        "ip": d.get("query","Unknown")})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/cloud-provider')
 def cloud_provider():
-    """Detect cloud provider from sys_vendor if available."""
     try:
-        provider = "Unknown"
-        if os.path.exists("/sys/class/dmi/id/sys_vendor"):
-            with open("/sys/class/dmi/id/sys_vendor", "r") as f:
-                vendor = f.read().strip().lower()
-                if "amazon" in vendor:
-                    provider = "AWS"
-                elif "digital" in vendor:
-                    provider = "DigitalOcean"
-                elif "linode" in vendor:
-                    provider = "Linode"
-                elif "google" in vendor:
-                    provider = "Google Cloud"
+        provider="Unknown"; p="/sys/class/dmi/id/sys_vendor"
+        if os.path.exists(p):
+            v=open(p).read().strip().lower()
+            if "amazon" in v: provider="AWS"
+            elif "digital" in v: provider="DigitalOcean"
+            elif "linode" in v: provider="Linode"
+            elif "google" in v: provider="Google Cloud"
         return jsonify({"provider": provider})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ========= NEW: Live network throughput (Mbps) =========
-def _bytes_to_mbps(delta_bytes, seconds):
-    if seconds <= 0:
-        return 0.0
-    return (delta_bytes * 8) / (seconds * 1_000_000)  # Mbps
-
-@app.route('/net-live')
-def net_live():
-    """
-    Returns live network rates (Mbps) sampled over ~1s:
-    {
-      "total": {"rx_mbps": float, "tx_mbps": float},
-      "per_nic": {"eth0": {"rx_mbps":..., "tx_mbps":...}, ...}
-    }
-    """
-    try:
-        t0 = time.time()
-        c0_total = psutil.net_io_counters()
-        c0_per = psutil.net_io_counters(pernic=True)
-        time.sleep(1.0)
-        t1 = time.time()
-        c1_total = psutil.net_io_counters()
-        c1_per = psutil.net_io_counters(pernic=True)
-        dt = t1 - t0
-
-        total = {
-            "rx_mbps": round(_bytes_to_mbps(c1_total.bytes_recv - c0_total.bytes_recv, dt), 3),
-            "tx_mbps": round(_bytes_to_mbps(c1_total.bytes_sent - c0_total.bytes_sent, dt), 3),
-        }
-
-        per_nic = {}
-        for nic, s0 in c0_per.items():
-            s1 = c1_per.get(nic)
-            if not s1:
-                continue
-            per_nic[nic] = {
-                "rx_mbps": round(_bytes_to_mbps(s1.bytes_recv - s0.bytes_recv, dt), 3),
-                "tx_mbps": round(_bytes_to_mbps(s1.bytes_sent - s0.bytes_sent, dt), 3),
-            }
-
-        return jsonify({"total": total, "per_nic": per_nic})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# ========= NEW (optional): per-connection/process snapshot via nethogs =========
-@app.route('/net-connections')
-def net_connections():
-    """
-    Uses nethogs (-t -c 1 -d 1) to produce a 1-second snapshot.
-    Returns: { available, rows:[{iface,pid,user,process,tx_mbps,rx_mbps}, ...] }
-    Requires: sudo apt install nethogs, plus sudoers permission for the service user.
-    """
-    try:
-        if not shutil.which("nethogs"):
-            return jsonify({"available": False, "message": "nethogs not installed"}), 200
-
-        out = subprocess.check_output(
-            ["sudo", "nethogs", "-t", "-c", "1", "-d", "1"],
-            stderr=subprocess.STDOUT, text=True
-        )
-
-        rows = []
-        for line in out.splitlines():
-            parts = line.split()
-            if len(parts) >= 6 and parts[0] != "Refreshing:":
-                iface, pid, user = parts[0], parts[1], parts[2]
-                sent_kbs, recv_kbs = parts[-2], parts[-1]
-                process = " ".join(parts[3:-2])
-
-                def kb_to_mbps(s):
-                    try:
-                        return round((float(s) * 8) / 1000, 3)
-                    except:
-                        return 0.0
-
-                rows.append({
-                    "iface": iface,
-                    "pid": pid,
-                    "user": user,
-                    "process": process,
-                    "tx_mbps": kb_to_mbps(sent_kbs),
-                    "rx_mbps": kb_to_mbps(recv_kbs),
-                })
-
-        return jsonify({"available": True, "rows": rows})
-    except subprocess.CalledProcessError as e:
-        return jsonify({"available": False, "message": e.output}), 200
-    except Exception as e:
-        return jsonify({"available": False, "message": str(e)}), 200
-
 @app.route('/ping')
 def ping():
-    return jsonify({"status": "success", "message": "Pong!"})
+    return jsonify({"status":"success","message":"Pong!"})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=$PORT, debug=False)
+    app.run(host='0.0.0.0', port=PORT, debug=False)
 EOL
 
-# Set permissions for the database file
-echo "Setting permissions for the database file..."
-sudo chmod 644 /etc/x-ui/x-ui.db
-sudo chown $USERNAME:$USERNAME /etc/x-ui/x-ui.db
-
-# Stop any existing instance of the Flask app
-if sudo systemctl is-active --quiet traffic-x; then
-    echo "Stopping existing Traffic-X service..."
-    sudo systemctl stop traffic-x
+# Permissions for X-UI DB (if using X-UI)
+if [ "$PANEL" = "xui" ]; then
+  echo "Setting permissions for the X-UI database file..."
+  sudo chmod 644 /etc/x-ui/x-ui.db || true
+  sudo chown $USERNAME:$USERNAME /etc/x-ui/x-ui.db || true
 fi
 
-# Create a systemd service to keep the Flask app running with Gunicorn
+# If service exists, stop before replacing
+if sudo systemctl is-active --quiet traffic-x; then
+  echo "Stopping existing Traffic-X service..."
+  sudo systemctl stop traffic-x
+fi
+
+# Create systemd service
 echo "Setting up systemd service..."
-cat > /etc/systemd/system/traffic-x.service <<EOL
+sudo tee /etc/systemd/system/traffic-x.service >/dev/null <<EOL
 [Unit]
 Description=Traffic-X Web App
 After=network.target
@@ -407,7 +353,12 @@ After=network.target
 User=$USERNAME
 WorkingDirectory=/home/$USERNAME/Traffic-X
 ExecStart=/bin/bash -c 'source /home/$USERNAME/Traffic-X/venv/bin/activate && exec gunicorn -w 4 -b 0.0.0.0:$PORT $SSL_CONTEXT app:app'
+Environment="PORT=$PORT"
+Environment="PANEL=$PANEL"
 Environment="DB_PATH=/etc/x-ui/x-ui.db"
+Environment="MONGO_URI=mongodb://127.0.0.1:27017"
+Environment="MONGO_DB=blitz_panel"
+Environment="MONGO_COLLECTION=users"
 Restart=always
 RestartSec=5
 StandardOutput=append:/var/log/traffic-x.log
@@ -418,16 +369,14 @@ SyslogIdentifier=traffic-x
 WantedBy=multi-user.target
 EOL
 
-# Reload systemd and enable the service
-echo "Enabling the service to start on boot..."
+echo "Enabling service..."
 sudo systemctl daemon-reload
 sudo systemctl enable traffic-x
 sudo systemctl start traffic-x
 
-# Display success message
 echo "Installation complete! Your server is running at http://$SERVER_IP:$PORT"
 if [ -n "$SSL_CONTEXT" ]; then
-    echo "SSL is enabled. Access the app securely at https://$SERVER_IP:$PORT"
+  echo "SSL enabled → https://$SERVER_IP:$PORT"
 else
-    echo "SSL is disabled. Access the app at http://$SERVER_IP:$PORT"
+  echo "SSL disabled → http://$SERVER_IP:$PORT"
 fi
