@@ -16,7 +16,7 @@ import requests
 from datetime import datetime
 
 app = Flask(__name__)
-db_path = "/etc/x-ui/x-ui.db"  # Adjust path if necessary
+db_path = "/etc/x-ui/x-ui.db"  # Adjust path if necessary 
 
 def convert_bytes(byte_size):
     """Convert bytes to a human-readable format (MB, GB, TB)."""
