@@ -1,4 +1,13 @@
-# Traffic-X  
+> ⚠️ **Usage Warning**  
+> This project is provided for **personal and educational use only**.  
+> - ❌ Commercial use or reselling is **strictly prohibited**.  
+> - ✅ You may use or modify this project for improvement purposes, **but proper credit to the original owner is required**.  
+> 
+> Please respect the licensing terms when using this project.
+
+
+
+# Traffic-X  2.0
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
 
 
