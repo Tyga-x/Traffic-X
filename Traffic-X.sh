@@ -10,7 +10,7 @@
 # For more information, visit: https://t.me/Dark_Evi
 
 
-# Function to display the menu
+# --- Menu ---
 show_menu() {
 echo "Welcome to Traffic-X Installer/Uninstaller"
 echo "Please choose an option:"
@@ -20,7 +20,6 @@ echo "3. Exit"
 }
 
 
-# Main menu logic
 while true; do
 show_menu
 read -p "Enter your choice [1-3]: " CHOICE
@@ -46,7 +45,7 @@ esac
 done
 
 
-# Ask user for necessary information
+# --- Ask user info ---
 echo "Enter your OS username (e.g., ubuntu):"
 read USERNAME
 echo "Enter your server domain (e.g.your_domain.com):"
@@ -56,7 +55,6 @@ read PORT
 PORT=${PORT:-5000}
 
 
-# Ask user for the version to install
 echo "Enter the version to install (e.g., v1.0.1) or leave blank for the latest version:"
 read VERSION
 if [ -z "$VERSION" ]; then
@@ -64,24 +62,33 @@ VERSION="latest"
 fi
 
 
-# Install required dependencies
+# --- Install Dependencies ---
 echo "Updating packages..."
 sudo apt update
-fi
 
+
+# --- Python Env Setup ---
 echo "Setting up Python virtual environment..."
-cd /home/$USERNAME/Traffic-X
+cd $(eval echo ~$USERNAME)/Traffic-X
 python3 -m venv venv
 source venv/bin/activate
 
+
+# --- Install Python Packages ---
 echo "Installing Flask, Gunicorn, and dependencies..."
 pip install --upgrade pip
 pip install flask gunicorn psutil requests
 
-# Blitz needs pymongo (safe to install always)
+
+# Blitz panel requires pymongo (safe to include)
 if [ "$PANEL" = "blitz" ]; then
-  pip install pymongo
+pip install pymongo
 fi
+
+
+# Continue with rest of script...
+echo "Environment setup complete. Proceeding with app generation..."
+# >>> Continue with rest of your logic (app.py, systemd, etc)...
 
 echo "Configuring domain..."
 export DOMAIN=$SERVER_IP
