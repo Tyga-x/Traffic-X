@@ -1,79 +1,72 @@
 #!/bin/bash
-# Traffic-X unified installer for X-UI (SQLite) and Blitz (MongoDB)
-# © 2025 x404 MASTER™ — MIT
+# @fileOverview Check usage stats of X-SL
+# @author MasterHide
+# @Copyright © 2025 x404 MASTER™
+# @license MIT
+#
+# You may not reproduce or distribute this work, in whole or in part,
+# without the express written consent of the copyright owner.
+#
+# For more information, visit: https://t.me/Dark_Evi
 
-set -e
 
+# Function to display the menu
 show_menu() {
-  echo "Welcome to Traffic-X Installer/Uninstaller"
-  echo "Please choose an option:"
-  echo "1. Run Traffic-X (Install)"
-  echo "2. Uninstall Traffic-X"
-  echo "3. Exit"
+echo "Welcome to Traffic-X Installer/Uninstaller"
+echo "Please choose an option:"
+echo "1. Run Traffic-X (Install)"
+echo "2. Uninstall Traffic-X"
+echo "3. Exit"
 }
 
+
+# Main menu logic
 while true; do
-  show_menu
-  read -p "Enter your choice [1-3]: " CHOICE
-  case $CHOICE in
-    1) echo "Proceeding with Traffic-X installation..."; break ;;
-    2) echo "Uninstalling Traffic-X..."
-       bash <(curl -s https://raw.githubusercontent.com/Tyga-x/Traffic-X/main/rm-TX.sh)
-       echo "Traffic-X has been uninstalled."; exit 0 ;;
-    3) echo "Exiting..."; exit 0 ;;
-    *) echo "Invalid choice. Please select a valid option [1-3]." ;;
-  esac
+show_menu
+read -p "Enter your choice [1-3]: " CHOICE
+case $CHOICE in
+1)
+echo "Proceeding with Traffic-X installation..."
+break
+;;
+2)
+echo "Uninstalling Traffic-X..."
+bash <(curl -s https://raw.githubusercontent.com/Tyga-x/Traffic-X/main/rm-TX.sh)
+echo "Traffic-X has been uninstalled."
+exit 0
+;;
+3)
+echo "Exiting..."
+exit 0
+;;
+*)
+echo "Invalid choice. Please select a valid option [1-3]."
+;;
+esac
 done
 
-echo "Choose panel to integrate:"
-echo "1) X-UI (default)"
-echo "2) Blitz (Hysteria) Panel"
-read -p "Enter [1-2]: " PANEL_CHOICE
-if [ "$PANEL_CHOICE" = "2" ]; then
-  PANEL="blitz"
-else
-  PANEL="xui"
-fi
-echo "Selected PANEL: $PANEL"
 
-read -p "Enter your OS username (e.g., ubuntu): " USERNAME
-read -p "Enter your server domain (e.g. your_domain.com): " SERVER_IP
-read -p "Enter the port (default: 5000): " PORT
+# Ask user for necessary information
+echo "Enter your OS username (e.g., ubuntu):"
+read USERNAME
+echo "Enter your server domain (e.g.your_domain.com):"
+read SERVER_IP
+echo "Enter the port (default: 5000):"
+read PORT
 PORT=${PORT:-5000}
 
-read -p "Enter the version to install (e.g., v1.0.1) or leave blank for latest: " VERSION
-if [ -z "$VERSION" ]; then VERSION="latest"; fi
 
+# Ask user for the version to install
+echo "Enter the version to install (e.g., v1.0.1) or leave blank for the latest version:"
+read VERSION
+if [ -z "$VERSION" ]; then
+VERSION="latest"
+fi
+
+
+# Install required dependencies
 echo "Updating packages..."
 sudo apt update
-
-echo "Installing required dependencies..."
-sudo apt install -y python3-pip python3-venv git sqlite3 socat unzip curl
-
-echo "Downloading Traffic-X version $VERSION..."
-if [ "$VERSION" == "latest" ]; then
-  DOWNLOAD_URL="https://github.com/Tyga-x/Traffic-X/archive/refs/heads/main.zip"
-else
-  DOWNLOAD_URL="https://github.com/Tyga-x/Traffic-X/archive/refs/tags/$VERSION.zip"
-fi
-
-cd /home/$USERNAME
-if curl -L "$DOWNLOAD_URL" -o Traffic-X.zip; then
-  echo "Extracting files..."
-  unzip -o Traffic-X.zip -d /home/$USERNAME
-  EXTRACTED_DIR=$(ls /home/$USERNAME | grep "Traffic-X-" | head -n 1)
-  mv "/home/$USERNAME/$EXTRACTED_DIR" /home/$USERNAME/Traffic-X
-  rm Traffic-X.zip
-else
-  echo "Failed to download Traffic-X version $VERSION. Exiting."
-  exit 1
-fi
-
-if [ -d "/home/$USERNAME/Traffic-X/templates" ]; then
-  echo "Templates directory found."
-else
-  echo "Templates directory not found. Exiting."
-  exit 1
 fi
 
 echo "Setting up Python virtual environment..."
