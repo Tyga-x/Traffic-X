@@ -67,22 +67,12 @@ echo "Updating packages..."
 sudo apt update
 
 
-# --- Python Env Setup ---
-echo "Setting up Python virtual environment..."
-cd $(eval echo ~$USERNAME)/Traffic-X
-python3 -m venv venv
-source venv/bin/activate
-
-
-# --- Install Python Packages ---
-echo "Installing Flask, Gunicorn, and dependencies..."
-pip install --upgrade pip
-pip install flask gunicorn psutil requests
-
-
-# Blitz panel requires pymongo (safe to include)
-if [ "$PANEL" = "blitz" ]; then
-pip install pymongo
+# --- Ensure Directory ---
+INSTALL_DIR="/home/$USERNAME/Traffic-X"
+echo "Checking or creating $INSTALL_DIR..."
+if [ ! -d "$INSTALL_DIR" ]; then
+echo "Creating directory for Traffic-X..."
+sudo mkdir -p "$INSTALL_DIR"
 fi
 
 
