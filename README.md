@@ -5,6 +5,7 @@
 > 
 > Please respect the licensing terms when using this project.
 
+<img width="989" height="690" alt="image" src="https://github.com/user-attachments/assets/8d9bb2f9-5707-44b1-9743-f518c9bccd45" />
 
 
 # Traffic-X  2.0
