@@ -18,12 +18,12 @@ Traffic-X is a simple tool that allows users to monitor and manage their traffic
 ---
 ### How to Setup ⚙️
 
-- 👉 To check your current OS username, run. 
+- 👉 STEP 1 To check your current OS username, run. 
 
 ```
 whoami
 ```
-To install Traffic-X, run the following command:
+STEP 2 To install Traffic-X, run the following command:
 ---
 ```
 
