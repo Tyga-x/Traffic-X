@@ -1,392 +1,252 @@
 #!/bin/bash
-# === Traffic-X (Final) — Installer/Updater with SSL preserved + tx_builders integration ===
-# Keeps your original flow, adds robust /user_config powered by tx_builders.py
+# @fileOverview Check usage stats of X-SL
+# @author MasterHide
+# @Copyright © 2025 x404 MASTER™
+# @license MIT
+#
+# You may not reproduce or distribute this work, in whole or in part, 
+# without the express written consent of the copyright owner.
+#
+# For more information, visit: https://t.me/Dark_Evi
 
-set -e
-
+# Function to display the menu
 show_menu() {
     echo "Welcome to Traffic-X Installer/Uninstaller"
     echo "Please choose an option:"
-    echo "1. Run Traffic-X (Install/Update)"
+    echo "1. Run Traffic-X (Install)"
     echo "2. Uninstall Traffic-X"
     echo "3. Exit"
 }
 
+# Main menu logic
 while true; do
     show_menu
     read -p "Enter your choice [1-3]: " CHOICE
     case $CHOICE in
-        1) echo "Proceeding with Traffic-X installation..."; break ;;
-        2) echo "Uninstalling Traffic-X..."; bash <(curl -s https://raw.githubusercontent.com/Tyga-x/Traffic-X/main/rm-TX.sh); echo "Traffic-X has been uninstalled."; exit 0 ;;
-        3) echo "Exiting..."; exit 0 ;;
-        *) echo "Invalid choice. Please select a valid option [1-3]." ;;
+        1)
+            echo "Proceeding with Traffic-X installation..."
+            break
+            ;;
+        2)
+            echo "Uninstalling Traffic-X..."
+            bash <(curl -s https://raw.githubusercontent.com/Tyga-x/Traffic-X/main/rm-TX.sh)
+            echo "Traffic-X has been uninstalled."
+            exit 0
+            ;;
+        3)
+            echo "Exiting..."
+            exit 0
+            ;;
+        *)
+            echo "Invalid choice. Please select a valid option [1-3]."
+            ;;
     esac
 done
 
-echo "Enter your OS username (default: root):"
+# Ask user for necessary information
+echo "Enter your OS username (e.g., ubuntu):"
 read USERNAME
-USERNAME=${USERNAME:-root}
-
-echo "Enter your server domain or IP (e.g., my.domain.com):"
+echo "Enter your server domain (e.g.your_domain.com):"
 read SERVER_IP
-if [ -z "$SERVER_IP" ]; then
-  echo "A domain or IP is required."
-  exit 1
-fi
-
 echo "Enter the port (default: 5000):"
 read PORT
 PORT=${PORT:-5000}
 
+# Ask user for the version to install
+echo "Enter the version to install (e.g., v1.0.1) or leave blank for the latest version:"
+read VERSION
+if [ -z "$VERSION" ]; then
+    VERSION="latest"
+fi
+
+# Install required dependencies
 echo "Updating packages..."
-apt update -y
+sudo apt update
 
+# Install Python3, pip, git, socat, and other required dependencies
 echo "Installing required dependencies..."
-apt install -y python3-pip python3-venv git sqlite3 socat unzip curl
+sudo apt install -y python3-pip python3-venv git sqlite3 socat unzip curl
 
-# App dir
-APP_DIR="/home/$USERNAME/Traffic-X"
-[ "$USERNAME" = "root" ] && APP_DIR="/root/Traffic-X"
-mkdir -p "$APP_DIR"
-cd "$APP_DIR"
+# Construct the download URL based on the version
+echo "Downloading Traffic-X version $VERSION..."
+if [ "$VERSION" == "latest" ]; then
+    DOWNLOAD_URL="https://github.com/Tyga-x/Traffic-X/archive/refs/heads/main.zip"
+else
+    DOWNLOAD_URL="https://github.com/Tyga-x/Traffic-X/archive/refs/tags/$VERSION.zip"
+fi
 
-echo "Setting up virtualenv..."
+cd /home/$USERNAME
+if curl -L "$DOWNLOAD_URL" -o Traffic-X.zip; then
+    echo "Download successful. Extracting files..."
+    unzip -o Traffic-X.zip -d /home/$USERNAME
+    EXTRACTED_DIR=$(ls /home/$USERNAME | grep "Traffic-X-" | head -n 1)
+    mv "/home/$USERNAME/$EXTRACTED_DIR" /home/$USERNAME/Traffic-X
+    rm Traffic-X.zip
+else
+    echo "Failed to download Traffic-X version $VERSION. Exiting."
+    exit 1
+fi
+
+# Verify the templates directory exists
+if [ -d "/home/$USERNAME/Traffic-X/templates" ]; then
+    echo "Templates directory found."
+else
+    echo "Templates directory not found. Exiting."
+    exit 1
+fi
+
+# Set up a virtual environment
+echo "Setting up the Python virtual environment..."
+cd /home/$USERNAME/Traffic-X
 python3 -m venv venv
 source venv/bin/activate
 
-echo "Installing Python deps..."
+# Install Flask, Gunicorn, and any other required Python libraries
+echo "Installing Flask, Gunicorn, and dependencies..."
 pip install --upgrade pip
-# NOTE: qrcode[pil] is needed for QR generation
-pip install flask gunicorn psutil requests qrcode[pil]
+pip install flask gunicorn psutil requests
 
-# ===== SSL (kept from your flow) =====
-echo "Configuring SSL (optional/auto with acme.sh)..."
-export DOMAIN="$SERVER_IP"
-CERT_DIR="/var/lib/Traffic-X/certs"
-mkdir -p "$CERT_DIR"
-chown -R $USERNAME:$USERNAME "$CERT_DIR"
+# Configure the Flask app to run on the specified port
+echo "Configuring Flask app..."
+export DOMAIN=$SERVER_IP
 
-SSL_CERT="$CERT_DIR/$DOMAIN.cer"
-SSL_KEY="$CERT_DIR/$DOMAIN.cer.key"
-SSL_CONTEXT=""
+# Create a custom directory for SSL certificates
+mkdir -p /var/lib/Traffic-X/certs
+sudo chown -R $USERNAME:$USERNAME /var/lib/Traffic-X/certs
 
-if [ -f "$SSL_CERT" ] && [ -f "$SSL_KEY" ]; then
-    echo "Existing cert found."
-    SSL_CONTEXT="--certfile=$SSL_CERT --keyfile=$SSL_KEY"
+# Check if valid certificate already exists
+if [ -f "/var/lib/Traffic-X/certs/$DOMAIN.cer" ] && [ -f "/var/lib/Traffic-X/certs/$DOMAIN.cer.key" ]; then
+    echo "Valid SSL certificate already exists."
+    SSL_CONTEXT="--certfile=/var/lib/Traffic-X/certs/$DOMAIN.cer --keyfile=/var/lib/Traffic-X/certs/$DOMAIN.cer.key"
 else
-    echo "Attempting to issue cert via acme.sh..."
+    echo "Generating SSL certificate..."
     curl https://get.acme.sh | sh -s email=$USERNAME@$SERVER_IP
     ~/.acme.sh/acme.sh --issue --force --standalone -d "$DOMAIN" \
-        --fullchain-file "$SSL_CERT" \
-        --key-file "$SSL_KEY" || true
-    chown $USERNAME:$USERNAME "$SSL_CERT" "$SSL_KEY" || true
-    if [ -f "$SSL_CERT" ] && [ -f "$SSL_KEY" ]; then
-        SSL_CONTEXT="--certfile=$SSL_CERT --keyfile=$SSL_KEY"
-    else
-        echo "SSL issuance failed or skipped. Running without SSL."
+        --fullchain-file "/var/lib/Traffic-X/certs/$DOMAIN.cer" \
+        --key-file "/var/lib/Traffic-X/certs/$DOMAIN.cer.key"
+    # Fix ownership of the generated certificates
+    sudo chown $USERNAME:$USERNAME /var/lib/Traffic-X/certs/$DOMAIN.cer
+    sudo chown $USERNAME:$USERNAME /var/lib/Traffic-X/certs/$DOMAIN.cer.key
+    # Verify certificate generation
+    if [ ! -f "/var/lib/Traffic-X/certs/$DOMAIN.cer" ] || [ ! -f "/var/lib/Traffic-X/certs/$DOMAIN.cer.key" ]; then
+        echo "Failed to generate SSL certificates. Disabling SSL."
         SSL_CONTEXT=""
+    else
+        echo "SSL certificates generated successfully."
+        SSL_CONTEXT="--certfile=/var/lib/Traffic-X/certs/$DOMAIN.cer --keyfile=/var/lib/Traffic-X/certs/$DOMAIN.cer.key"
     fi
 fi
 
-echo "Writing tx_builders.py..."
-cat > tx_builders.py <<'PYEOF'
-# tx_builders.py — robust builders for VLESS / VMess / Trojan / SS with full Xray/XUI options
-import os, json, base64, io
-from typing import Any, Dict, Optional, Tuple
-from urllib.parse import quote
-try:
-    import qrcode
-except Exception:
-    qrcode = None
-
-FALLBACK_DOMAIN = os.getenv("DOMAIN", "localhost")
-
-def _jload(x: Any) -> Dict[str, Any]:
-    if not x: return {}
-    if isinstance(x, dict): return x
-    try: return json.loads(x)
-    except Exception:
-        try: return json.loads(str(x).replace("'", '"'))
-        except Exception: return {}
-
-def _server_host(stream: Dict[str, Any], inbound_settings: Dict[str, Any]) -> str:
-    tls = stream.get("tlsSettings", {}) or {}
-    ws  = stream.get("wsSettings", {}) or {}
-    if tls.get("serverName"): return tls["serverName"]
-    if (ws.get("headers") or {}).get("Host"): return (ws.get("headers") or {})["Host"]
-    for key in ("domain","host","address","serverName"):
-        if inbound_settings.get(key): return inbound_settings[key]
-    return FALLBACK_DOMAIN
-
-def _client_id(client: Dict[str, Any]) -> str:
-    return client.get("id") or client.get("uuid") or client.get("password") or ""
-
-def _qr_data_uri(text: str) -> Optional[str]:
-    if not (qrcode and text): return None
-    qr = qrcode.QRCode(border=1); qr.add_data(text); qr.make(fit=True)
-    img = qr.make_image(); buf = io.BytesIO(); img.save(buf, format="PNG")
-    import base64 as _b64
-    return "data:image/png;base64," + _b64.b64encode(buf.getvalue()).decode()
-
-def _norm(v):
-    if isinstance(v, bool): return "1" if v else "0"
-    if v is None: return ""
-    return str(v)
-
-def _gather_extra_params(inbound_settings: Dict[str, Any], stream: Dict[str, Any], client: Dict[str, Any]) -> Dict[str, str]:
-    out: Dict[str, str] = {}
-    tls = stream.get("tlsSettings", {}) or {}
-    alpn = tls.get("alpn")
-    if isinstance(alpn, (list, tuple)) and alpn:
-        out["alpn"] = ",".join(map(str, alpn))
-    elif isinstance(alpn, str) and alpn:
-        out["alpn"] = alpn
-    if "allowInsecure" in tls:
-        out["allowInsecure"] = _norm(tls["allowInsecure"])
-    if "allowInsecure" in inbound_settings:
-        out["allowInsecure"] = _norm(inbound_settings["allowInsecure"])
-    for k in ("fp","fingerprint","flow","fallback","realityPublicKey"):
-        if client.get(k) is not None: out[k] = _norm(client[k])
-        elif inbound_settings.get(k) is not None: out[k] = _norm(inbound_settings[k])
-    reserved = {"clients","stream_settings","sniffing"}
-    for k,v in inbound_settings.items():
-        if k in reserved: continue
-        if isinstance(v,(dict,list)): continue
-        out.setdefault(k,_norm(v))
-    for k,v in client.items():
-        if k in ("email","id","uuid","password"): continue
-        if isinstance(v,(dict,list)): continue
-        out.setdefault(k,_norm(v))
-    return out
-
-def build_vless(client: Dict[str, Any], inbound: Dict[str, Any]) -> str:
-    stream = _jload(inbound.get("stream_settings"))
-    inbound_settings = _jload(inbound.get("settings") or {})
-    net = stream.get("network","tcp")
-    host = _server_host(stream, inbound_settings)
-    port = str(inbound.get("port") or inbound.get("listen_port") or "")
-    uid = _client_id(client)
-    qs = {"type":net, "encryption":"none"}
-    sec = stream.get("security") or inbound_settings.get("security") or "none"
-    qs["security"] = sec
-    if net == "ws":
-        ws = stream.get("wsSettings", {}) or {}
-        qs["path"] = ws.get("path","/")
-        host_header = (ws.get("headers") or {}).get("Host")
-        if host_header: qs["host"] = host_header
-    if net == "grpc":
-        g = stream.get("grpcSettings", {}) or {}
-        svc = g.get("serviceName")
-        if svc: qs.update({"mode":"gun","serviceName":svc})
-    flow = client.get("flow") or inbound_settings.get("flow")
-    if flow: qs["flow"] = str(flow)
-    qs.update(_gather_extra_params(inbound_settings, stream, client))
-    ordered_keys = ["type","security","encryption","path","host","mode","serviceName","flow"]
-    ordered = []; [ordered.append((k,qs.pop(k))) for k in ordered_keys if k in qs]
-    for k,v in qs.items(): ordered.append((k,v))
-    encoded = "&".join(f"{quote(str(k))}={quote(str(v))}" for k,v in ordered if v is not None)
-    tag = quote(client.get("email") or inbound.get("remark") or "node")
-    return f"vless://{uid}@{host}:{port}?{encoded}#{tag}"
-
-def build_vmess(client: Dict[str, Any], inbound: Dict[str, Any]):
-    import base64 as _b64, json as _json
-    stream = _jload(inbound.get("stream_settings"))
-    inbound_settings = _jload(inbound.get("settings") or {})
-    net = stream.get("network","tcp")
-    host = _server_host(stream, inbound_settings)
-    port = str(inbound.get("port") or inbound.get("listen_port") or "")
-    ws = stream.get("wsSettings", {}) or {}
-    path = ws.get("path","/")
-    sec = stream.get("security") or inbound_settings.get("security") or "none"
-    vm = {
-        "v":"2","ps": client.get("email") or inbound.get("remark") or "node",
-        "add":host,"port":port,"id":_client_id(client),
-        "aid": str(client.get("alterId") or client.get("aid") or 0),
-        "net": net, "type": "none",
-        "host": (ws.get("headers") or {}).get("Host",""),
-        "path": path, "tls": "" if sec=="none" else sec
-    }
-    extras = _gather_extra_params(inbound_settings, stream, client)
-    if extras: vm["_ext"] = extras
-    b64 = _b64.b64encode(_json.dumps(vm, separators=(",",":")).encode()).decode()
-    return "vmess://" + b64, vm
-
-def build_trojan(client: Dict[str, Any], inbound: Dict[str, Any]) -> str:
-    stream = _jload(inbound.get("stream_settings"))
-    inbound_settings = _jload(inbound.get("settings") or {})
-    net = stream.get("network","tcp")
-    host = _server_host(stream, inbound_settings)
-    port = str(inbound.get("port") or inbound.get("listen_port") or "")
-    pwd = _client_id(client)
-    sec = stream.get("security") or inbound_settings.get("security") or "tls"
-    qs = {"security": sec}
-    tls = stream.get("tlsSettings", {}) or {}
-    sni = tls.get("serverName") or inbound_settings.get("sni") or host
-    if sni: qs["sni"] = sni
-    if net == "ws":
-        ws = stream.get("wsSettings", {}) or {}
-        qs.update({"type":"ws","path":ws.get("path","/")})
-        host_header = (ws.get("headers") or {}).get("Host")
-        if host_header: qs["host"] = host_header
-    elif net == "grpc":
-        g = stream.get("grpcSettings", {}) or {}
-        qs["type"] = "grpc"
-        if g.get("serviceName"): qs["serviceName"] = g["serviceName"]
-    qs.update(_gather_extra_params(inbound_settings, stream, client))
-    ordered_keys = ["security","sni","alpn","type","path","host","serviceName"]
-    ordered = []; [ordered.append((k,qs.pop(k))) for k in ordered_keys if k in qs]
-    for k,v in qs.items(): ordered.append((k,v))
-    encoded = "&".join(f"{quote(str(k))}={quote(str(v))}" for k,v in ordered if v is not None)
-    tag = quote(client.get("email") or inbound.get("remark") or "node")
-    return f"trojan://{pwd}@{host}:{port}?{encoded}#{tag}"
-
-def build_ss(client: Dict[str, Any], inbound: Dict[str, Any]) -> Optional[str]:
-    stream = _jload(inbound.get("stream_settings"))
-    inbound_settings = _jload(inbound.get("settings") or {})
-    host = _server_host(stream, inbound_settings)
-    port = str(inbound.get("port") or inbound.get("listen_port") or "")
-    method = client.get("method") or inbound_settings.get("method")
-    pwd = client.get("password") or inbound_settings.get("password")
-    if not (method and pwd): return None
-    import base64 as _b64
-    userinfo = _b64.urlsafe_b64encode(f"{method}:{pwd}".encode()).decode().rstrip("=")
-    tag = quote(client.get("email") or inbound.get("remark") or "node")
-    return f"ss://{userinfo}@{host}:{port}#{tag}"
-
-def build_best(inbound, client):
-    proto = (inbound.get("protocol") or "").lower()
-    res = {"protocol": proto, "vless_link": None, "vmess_link": None, "vmess_json": None,
-           "trojan_link": None, "ss_link": None, "config_text": "", "config_filename": "", "qr_datauri": None}
-    if proto == "vless":
-        link = res["vless_link"] = build_vless(client, inbound)
-        res["config_text"] = link; res["config_filename"] = f"{client.get('email','user')}_vless.txt"
-    elif proto == "vmess":
-        link, vmj = build_vmess(client, inbound)
-        res["vmess_link"] = link; res["vmess_json"] = vmj
-        res["config_text"] = link; res["config_filename"] = f"{client.get('email','user')}_vmess.txt"
-    elif proto == "trojan":
-        link = res["trojan_link"] = build_trojan(client, inbound)
-        res["config_text"] = link; res["config_filename"] = f"{client.get('email','user')}_trojan.txt"
-    elif proto in ("shadowsocks","ss"):
-        link = res["ss_link"] = build_ss(client, inbound)
-        res["config_text"] = link or ""; res["config_filename"] = f"{client.get('email','user')}_ss.txt"
-    else:
-        link = res["vless_link"] = build_vless(client, inbound)
-        res["config_text"] = link; res["config_filename"] = f"{client.get('email','user')}_config.txt"
-        res["protocol"] = "vless"
-    if res["config_text"] and qrcode:
-        res["qr_datauri"] = _qr_data_uri(res["config_text"])
-    return res
-PYEOF
-
-echo "Writing app.py..."
-cat > app.py <<'PYEOF'
-from flask import Flask, request, render_template, jsonify, send_file
-import sqlite3, json, os, io, psutil, requests
+# app.py with new features (server metrics, network traffic, provider detection)
+cat > app.py <<EOL
+from flask import Flask, request, render_template, jsonify
+import sqlite3
+import json
+import psutil
+import requests
 from datetime import datetime
-from tx_builders import build_best
+import os
+
+# NEW: imports for live throughput and optional per-connection snapshot
+import time
+import shutil
+import subprocess
 
 app = Flask(__name__)
-
-# ---- Config (read-only DB) ----
 db_path = os.getenv("DB_PATH", "/etc/x-ui/x-ui.db")
-fallback_domain = os.getenv("DOMAIN", "localhost")
 
-# ================== helpers ==================
 def convert_bytes(byte_size):
-    if byte_size is None: return "0 Bytes"
-    if byte_size < 1024: return f"{byte_size} Bytes"
-    if byte_size < 1024*1024: return f"{round(byte_size/1024,2)} KB"
-    if byte_size < 1024*1024*1024: return f"{round(byte_size/(1024*1024),2)} MB"
-    if byte_size < 1024*1024*1024*1024: return f"{round(byte_size/(1024*1024*1024),2)} GB"
-    return f"{round(byte_size/(1024*1024*1024*1024),2)} TB"
+    """Convert bytes to a human-readable format (MB, GB, TB)."""
+    if byte_size is None:
+        return "0 Bytes"
+    if byte_size < 1024:
+        return f"{byte_size} Bytes"
+    elif byte_size < 1024 * 1024:
+        return f"{round(byte_size / 1024, 2)} KB"
+    elif byte_size < 1024 * 1024 * 1024:
+        return f"{round(byte_size / (1024 * 1024), 2)} MB"
+    elif byte_size < 1024 * 1024 * 1024 * 1024:
+        return f"{round(byte_size / (1024 * 1024 * 1024), 2)} GB"
+    else:
+        return f"{round(byte_size / (1024 * 1024 * 1024 * 1024), 2)} TB"
 
-# ================== routes ==================
-@app.route("/")
+@app.route('/')
 def home():
-    return render_template("index.html")
+    return render_template('index.html')
 
-@app.route("/usage", methods=["POST"])
+@app.route('/usage', methods=['POST'])
 def usage():
     try:
-        user_input = request.form.get("user_input")
+        user_input = request.form.get('user_input')
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-
-        query = """SELECT email, up, down, total, expiry_time, inbound_id
-                   FROM client_traffics
-                   WHERE email = ? OR id = ?"""
+        query = '''SELECT email, up, down, total, expiry_time, inbound_id 
+                   FROM client_traffics WHERE email = ? OR id = ?'''
         cursor.execute(query, (user_input, user_input))
         row = cursor.fetchone()
-
         if row:
             email, up, down, total, expiry_time, inbound_id = row
-
-            # expiry
             expiry_date = "Invalid Date"
             if expiry_time and isinstance(expiry_time, (int, float)):
                 expiry_timestamp = expiry_time / 1000 if expiry_time > 9999999999 else expiry_time
                 try:
-                    expiry_date = datetime.utcfromtimestamp(expiry_timestamp).strftime("%Y-%m-%d %H:%M:%S")
+                    expiry_date = datetime.utcfromtimestamp(expiry_timestamp).strftime('%Y-%m-%d %H:%M:%S')
                 except (ValueError, OSError):
                     expiry_date = "Invalid Date"
-
-            # get client info inside inbound.settings
-            inbound_query = "SELECT settings FROM inbounds WHERE id = ?"
+            inbound_query = '''SELECT settings FROM inbounds WHERE id = ?'''
             cursor.execute(inbound_query, (inbound_id,))
             inbound_row = cursor.fetchone()
-
             totalGB = "Not Available"
             user_status = "Disabled"
-
             if inbound_row:
                 settings = inbound_row[0]
                 try:
                     inbound_data = json.loads(settings)
-                    for client in inbound_data.get("clients", []):
-                        if client.get("email") == email:
-                            totalGB = client.get("totalGB", "Not Available")
-                            user_status = "Enabled" if client.get("enable", True) else "Disabled"
+                    for client in inbound_data.get('clients', []):
+                        if client.get('email') == email:
+                            totalGB = client.get('totalGB', "Not Available")
+                            user_status = "Enabled" if client.get('enable', True) else "Disabled"
                             break
                 except json.JSONDecodeError:
                     totalGB = "Invalid JSON Data"
-
             conn.close()
-
-            def _fmt(n): return convert_bytes(n)
-            return render_template(
-                "result.html",
-                email=email,
-                up=_fmt(up),
-                down=_fmt(down),
-                total=_fmt(total),
-                expiry_date=expiry_date,
-                totalGB=convert_bytes(totalGB) if totalGB != "Not Available" else totalGB,
-                user_status=user_status
-            )
+            up = convert_bytes(up)
+            down = convert_bytes(down)
+            total = convert_bytes(total)
+            totalGB = convert_bytes(totalGB) if totalGB != "Not Available" else totalGB
+            return render_template('result.html',
+                                   email=email,
+                                   up=up,
+                                   down=down,
+                                   total=total,
+                                   expiry_date=expiry_date,
+                                   totalGB=totalGB,
+                                   user_status=user_status)
         else:
             conn.close()
             return "No data found for this user."
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/update-status", methods=["POST"])
+@app.route('/update-status', methods=['POST'])
 def update_status():
     try:
-        data = request.get_json() or {}
-        _ = data.get("status")
+        data = request.get_json()
+        new_status = data.get('status')
+        print(f"Updating status to: {new_status}")
         return jsonify({"status": "success", "message": "Status updated"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/server-status")
+@app.route('/server-status')
 def server_status():
+    """Returns CPU, RAM, Disk usage, and cumulative Network counters (since boot)."""
     try:
         net_io = psutil.net_io_counters()
         status = {
             "cpu": psutil.cpu_percent(interval=1),
             "ram": psutil.virtual_memory().percent,
-            "disk": psutil.disk_usage("/").percent,
+            "disk": psutil.disk_usage('/').percent,
             "net_sent": convert_bytes(net_io.bytes_sent),
             "net_recv": convert_bytes(net_io.bytes_recv)
         }
@@ -394,10 +254,10 @@ def server_status():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/server-location")
+@app.route('/server-location')
 def server_location():
     try:
-        response = requests.get("http://ip-api.com/json/", timeout=5)
+        response = requests.get("http://ip-api.com/json/")
         data = response.json()
         return jsonify({
             "country": data.get("country", "Unknown"),
@@ -407,127 +267,167 @@ def server_location():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/cloud-provider")
+@app.route('/cloud-provider')
 def cloud_provider():
+    """Detect cloud provider from sys_vendor if available."""
     try:
         provider = "Unknown"
         if os.path.exists("/sys/class/dmi/id/sys_vendor"):
             with open("/sys/class/dmi/id/sys_vendor", "r") as f:
                 vendor = f.read().strip().lower()
-                if "amazon" in vendor: provider = "AWS"
-                elif "digital" in vendor: provider = "DigitalOcean"
-                elif "linode" in vendor: provider = "Linode"
-                elif "google" in vendor: provider = "Google Cloud"
+                if "amazon" in vendor:
+                    provider = "AWS"
+                elif "digital" in vendor:
+                    provider = "DigitalOcean"
+                elif "linode" in vendor:
+                    provider = "Linode"
+                elif "google" in vendor:
+                    provider = "Google Cloud"
         return jsonify({"provider": provider})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ================== user_config (NEW, via tx_builders) ==================
-@app.route("/user_config")
-def user_config():
-    username = request.args.get("username", "").strip()
-    if not username:
-        return jsonify({"error": "username required"}), 400
+# ========= NEW: Live network throughput (Mbps) =========
+def _bytes_to_mbps(delta_bytes, seconds):
+    if seconds <= 0:
+        return 0.0
+    return (delta_bytes * 8) / (seconds * 1_000_000)  # Mbps
 
+@app.route('/net-live')
+def net_live():
+    """
+    Returns live network rates (Mbps) sampled over ~1s:
+    {
+      "total": {"rx_mbps": float, "tx_mbps": float},
+      "per_nic": {"eth0": {"rx_mbps":..., "tx_mbps":...}, ...}
+    }
+    """
     try:
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        cur.execute("""
-          SELECT i.id, i.protocol, i.port, i.remark, i.stream_settings, i.settings, c.value
-          FROM inbounds i, json_each(json_extract(i.settings,'$.clients')) c
-          WHERE json_extract(c.value,'$.email') = ?
-          LIMIT 1
-        """, (username,))
-        row = cur.fetchone()
-        conn.close()
+        t0 = time.time()
+        c0_total = psutil.net_io_counters()
+        c0_per = psutil.net_io_counters(pernic=True)
+        time.sleep(1.0)
+        t1 = time.time()
+        c1_total = psutil.net_io_counters()
+        c1_per = psutil.net_io_counters(pernic=True)
+        dt = t1 - t0
 
-        if not row:
-            return jsonify({"error": "user not found"}), 404
-
-        inbound = {
-            "id": row[0],
-            "protocol": row[1],
-            "port": row[2],
-            "remark": row[3],
-            "stream_settings": row[4],  # TEXT (JSON)
-            "settings": row[5]          # TEXT (JSON with clients and top-level keys)
+        total = {
+            "rx_mbps": round(_bytes_to_mbps(c1_total.bytes_recv - c0_total.bytes_recv, dt), 3),
+            "tx_mbps": round(_bytes_to_mbps(c1_total.bytes_sent - c0_total.bytes_sent, dt), 3),
         }
-        client = json.loads(row[6]) if row[6] else {}
 
-        built = build_best(inbound, client)
-        if built.get("config_filename") and username not in built["config_filename"]:
-            proto = (built.get("protocol") or "config").lower()
-            built["config_filename"] = f"{username}_{proto}.txt"
+        per_nic = {}
+        for nic, s0 in c0_per.items():
+            s1 = c1_per.get(nic)
+            if not s1:
+                continue
+            per_nic[nic] = {
+                "rx_mbps": round(_bytes_to_mbps(s1.bytes_recv - s0.bytes_recv, dt), 3),
+                "tx_mbps": round(_bytes_to_mbps(s1.bytes_sent - s0.bytes_sent, dt), 3),
+            }
 
-        return jsonify({"username": username, **built})
+        return jsonify({"total": total, "per_nic": per_nic})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/download_config")
-def download_config():
-    username = request.args.get("username", "").strip()
-    if not username:
-        return jsonify({"error": "username required"}), 400
+# ========= NEW (optional): per-connection/process snapshot via nethogs =========
+@app.route('/net-connections')
+def net_connections():
+    """
+    Uses nethogs (-t -c 1 -d 1) to produce a 1-second snapshot.
+    Returns: { available, rows:[{iface,pid,user,process,tx_mbps,rx_mbps}, ...] }
+    Requires: sudo apt install nethogs, plus sudoers permission for the service user.
+    """
+    try:
+        if not shutil.which("nethogs"):
+            return jsonify({"available": False, "message": "nethogs not installed"}), 200
 
-    r = app.test_client().get(f"/user_config?username={username}")
-    if r.status_code != 200:
-        return r
+        out = subprocess.check_output(
+            ["sudo", "nethogs", "-t", "-c", "1", "-d", "1"],
+            stderr=subprocess.STDOUT, text=True
+        )
 
-    j = r.get_json() or {}
-    text = j.get("config_text", "")
-    name = j.get("config_filename", "config.txt")
+        rows = []
+        for line in out.splitlines():
+            parts = line.split()
+            if len(parts) >= 6 and parts[0] != "Refreshing:":
+                iface, pid, user = parts[0], parts[1], parts[2]
+                sent_kbs, recv_kbs = parts[-2], parts[-1]
+                process = " ".join(parts[3:-2])
 
-    buf = io.BytesIO(text.encode())
-    buf.seek(0)
-    return send_file(buf, as_attachment=True, download_name=name, mimetype="text/plain")
+                def kb_to_mbps(s):
+                    try:
+                        return round((float(s) * 8) / 1000, 3)
+                    except:
+                        return 0.0
 
-@app.route("/ping")
+                rows.append({
+                    "iface": iface,
+                    "pid": pid,
+                    "user": user,
+                    "process": process,
+                    "tx_mbps": kb_to_mbps(sent_kbs),
+                    "rx_mbps": kb_to_mbps(recv_kbs),
+                })
+
+        return jsonify({"available": True, "rows": rows})
+    except subprocess.CalledProcessError as e:
+        return jsonify({"available": False, "message": e.output}), 200
+    except Exception as e:
+        return jsonify({"available": False, "message": str(e)}), 200
+
+@app.route('/ping')
 def ping():
     return jsonify({"status": "success", "message": "Pong!"})
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=False)
-PYEOF
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=$PORT, debug=False)
+EOL
 
-# Keep your templates folder (index.html/result.html) in the repo; app.py will render them.
-mkdir -p templates
+# Set permissions for the database file
+echo "Setting permissions for the database file..."
+sudo chmod 644 /etc/x-ui/x-ui.db
+sudo chown $USERNAME:$USERNAME /etc/x-ui/x-ui.db
 
-echo "Creating/Updating systemd service..."
-LOG=/var/log/traffic-x.log
-touch "$LOG"; chown "$USERNAME":"$USERNAME" "$LOG" || true
+# Stop any existing instance of the Flask app
+if sudo systemctl is-active --quiet traffic-x; then
+    echo "Stopping existing Traffic-X service..."
+    sudo systemctl stop traffic-x
+fi
 
-cat > /etc/systemd/system/traffic-x.service <<EOF
+# Create a systemd service to keep the Flask app running with Gunicorn
+echo "Setting up systemd service..."
+cat > /etc/systemd/system/traffic-x.service <<EOL
 [Unit]
 Description=Traffic-X Web App
 After=network.target
 
 [Service]
 User=$USERNAME
-WorkingDirectory=$APP_DIR
+WorkingDirectory=/home/$USERNAME/Traffic-X
+ExecStart=/bin/bash -c 'source /home/$USERNAME/Traffic-X/venv/bin/activate && exec gunicorn -w 4 -b 0.0.0.0:$PORT $SSL_CONTEXT app:app'
 Environment="DB_PATH=/etc/x-ui/x-ui.db"
-Environment="DOMAIN=$SERVER_IP"
-Environment="PORT=$PORT"
-# Expand SSL flags if present
-ExecStart=/bin/bash -lc 'source $APP_DIR/venv/bin/activate && exec gunicorn -w 4 -b 0.0.0.0:$PORT $SSL_CONTEXT app:app'
 Restart=always
 RestartSec=5
-StandardOutput=append:$LOG
-StandardError=append:$LOG
+StandardOutput=append:/var/log/traffic-x.log
+StandardError=append:/var/log/traffic-x.log
+SyslogIdentifier=traffic-x
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOL
 
-echo "Fixing x-ui.db permissions..."
-chmod 644 /etc/x-ui/x-ui.db || true
-chown $USERNAME:$USERNAME /etc/x-ui/x-ui.db || true
+# Reload systemd and enable the service
+echo "Enabling the service to start on boot..."
+sudo systemctl daemon-reload
+sudo systemctl enable traffic-x
+sudo systemctl start traffic-x
 
-systemctl daemon-reload
-systemctl enable traffic-x
-systemctl restart traffic-x
-
+# Display success message
+echo "Installation complete! Your server is running at http://$SERVER_IP:$PORT"
 if [ -n "$SSL_CONTEXT" ]; then
-  echo "✅ Done! HTTPS: https://$SERVER_IP:$PORT"
+    echo "SSL is enabled. Access the app securely at https://$SERVER_IP:$PORT"
 else
-  echo "✅ Done! HTTP:  http://$SERVER_IP:$PORT"
+    echo "SSL is disabled. Access the app at http://$SERVER_IP:$PORT"
 fi
