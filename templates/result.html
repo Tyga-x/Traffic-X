@@ -97,7 +97,6 @@
       transition: width .8s ease, background-color .4s ease;
     }
 
-    /* Toggle (user config enable/disable) */
     .toggle{
       width:44px; height:24px; background:#999; border-radius:999px; position:relative; cursor:pointer; flex-shrink:0;
     }
@@ -109,7 +108,6 @@
 
     .muted{ opacity:.85; font-size:13px }
 
-    /* Chart containers */
     .chart{ width:100%; height:260px }
     .chart.small{ height:220px }
 
@@ -138,7 +136,7 @@
       </div>
     </div>
 
-    <!-- GRID (3 x 2 like index) -->
+    <!-- GRID -->
     <div class="grid">
 
       <!-- User Overview -->
@@ -159,10 +157,10 @@
           <div class="badge" id="expiry-badge">{{ expiry_date }}</div>
         </div>
 
-        <div class="muted">Tip: toggle will POST to <code>/update-status</code>.</div>
+        <div class="muted"><code>update-status</code>.</div>
       </div>
 
-      <!-- Usage (numbers + progress) -->
+      <!-- Usage -->
       <div class="card">
         <h3><i class="fa-solid fa-gauge-high"></i>Usage</h3>
 
@@ -185,21 +183,21 @@
         <div class="progress-container"><div id="limit-bar" class="progress-bar"></div></div>
       </div>
 
-      <!-- Expiry Gauge (days left) -->
+      <!-- Days to Expiry -->
       <div class="card">
         <h3><i class="fa-regular fa-clock"></i>Days to Expiry</h3>
         <div id="expiry-gauge" class="chart small"></div>
         <div class="muted" id="expiry-desc">—</div>
       </div>
 
-      <!-- Summary Chart (Upload/Download vs Remaining) -->
+      <!-- Summary chart -->
       <div class="card">
         <h3><i class="fa-solid fa-chart-line"></i>Summary (Live)</h3>
         <div id="summary-chart" class="chart"></div>
         <div class="muted">Shows uploaded & downloaded compared to remaining quota.</div>
       </div>
 
-      <!-- Breakdown Donut -->
+      <!-- Breakdown -->
       <div class="card">
         <h3><i class="fa-solid fa-chart-pie"></i>Usage Breakdown</h3>
         <div id="breakdown" class="chart small"></div>
@@ -219,6 +217,25 @@
         <div class="metric">
           <div class="label"><i class="fa-solid fa-percent"></i> Utilization</div>
           <div class="badge" id="utilization-badge">—</div>
+        </div>
+      </div>
+
+      <!-- NEW: Client Config (QR + Copy + Download) -->
+      <div class="card">
+        <h3><i class="fa-solid fa-qrcode"></i> Client Config</h3>
+        <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+          <img id="qr-img" alt="QR" style="width:220px;height:220px;border:1px solid #ffffff33;border-radius:10px;background:#ffffff10"/>
+          <div style="min-width:260px;max-width:420px">
+            <div class="metric">
+              <div class="label"><i class="fa-solid fa-link"></i> Link</div>
+              <div id="link-badge" class="badge" style="max-width:240px;overflow-wrap:anywhere">—</div>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:10px">
+              <button class="btn" id="copy-link"><i class="fa-regular fa-copy"></i> Copy</button>
+              <a class="btn outline" id="download-link" href="#" download><i class="fa-solid fa-download"></i> Download</a>
+            </div>
+            <div class="muted" id="proto-note" style="margin-top:8px">—</div>
+          </div>
         </div>
       </div>
 
@@ -271,7 +288,6 @@
       if (!el || maxMB<=0) return;
       const p = Math.max(0, Math.min(100, valueMB/maxMB*100));
       el.style.width = p + "%";
-      // color ramp
       if (p <= 50) el.style.backgroundColor = "#05B031";
       else if (p <= 80) el.style.backgroundColor = "#FFD700";
       else if (p <= 98) el.style.backgroundColor = "#FFA500";
@@ -292,7 +308,6 @@
       toggle.classList.toggle("active", enabled);
     }
     applyStatusUI(userStatus);
-
     toggle.addEventListener("click", () => {
       const next = !toggle.classList.contains("active");
       applyStatusUI(next);
@@ -303,9 +318,9 @@
       }).catch(()=>{});
     });
 
-    // ===== Expiry gauge & copy =====
+    // ===== Expiry gauge & description =====
     function daysUntil(dateStr){
-      const d = new Date(dateStr.replace(" ", "T")+"Z"); // treat as UTC
+      const d = new Date(dateStr.replace(" ", "T")+"Z");
       if (isNaN(d.getTime())) return null;
       const now = new Date();
       return Math.ceil((d.getTime()-now.getTime())/(1000*60*60*24));
@@ -321,7 +336,6 @@
     }
 
     // ===== Charts (ApexCharts) =====
-    // Summary (columns for Upload/Download + line for Remaining)
     const summaryOptions = {
       chart: { type: 'line', height: 260, foreColor:'#fff', toolbar: { show: false } },
       stroke: { width: [0, 0, 3] },
@@ -343,7 +357,6 @@
     };
     new ApexCharts(document.querySelector("#summary-chart"), summaryOptions).render();
 
-    // Donut Breakdown (Up vs Down)
     const breakdownOptions = {
       chart: { type:'donut', height:220, foreColor:'#fff', toolbar: { show: false } },
       series: [ upMB, downMB ],
@@ -357,12 +370,10 @@
     };
     new ApexCharts(document.querySelector("#breakdown"), breakdownOptions).render();
 
-    // Radial Bar Gauge (Days to Expiry)
     let pct = 100;
     if (dLeft!==null){
-      // Assume 30-day cycles by default to get a simple "close to expiry" gauge
       const clamp = (x,min,max)=> Math.max(min, Math.min(max, x));
-      pct = clamp( (1 - (dLeft/30))*100 , 0, 100); // nearer expiry => higher %
+      pct = clamp( (1 - (dLeft/30))*100 , 0, 100);
     }
     const gaugeOptions = {
       chart: { type:'radialBar', height:220, foreColor:'#fff', toolbar: { show: false } },
@@ -380,6 +391,38 @@
       }
     };
     new ApexCharts(document.querySelector("#expiry-gauge"), gaugeOptions).render();
+
+    // ===== NEW: fetch user-config (QR + link + download) =====
+    (async function loadConfigForUser(){
+      const username = "{{ email }}";
+      try{
+        const r = await fetch(`/user_config?username=${encodeURIComponent(username)}`);
+        if(!r.ok){ document.getElementById("proto-note").textContent = "Config not available."; return; }
+        const j = await r.json();
+
+        // Prefer VLESS → VMess → TROJAN → fallback text
+        const link = j.vless_link || j.vmess_link || j.trojan_link || j.config_text || "";
+
+        document.getElementById("qr-img").src = j.qr_datauri;
+        document.getElementById("link-badge").textContent = link || "—";
+        document.getElementById("proto-note").textContent =
+          j.protocol ? `Protocol: ${j.protocol}` : "Protocol not detected";
+
+        document.getElementById("copy-link").onclick = async ()=>{
+          if(!link) return;
+          const ok = await navigator.clipboard.writeText(link).then(()=>true).catch(()=>false);
+          alert(ok ? "Client link copied!" : "Copy failed.");
+        };
+
+        const blob = new Blob([j.config_text||link], {type:"text/plain"});
+        const url = URL.createObjectURL(blob);
+        const a = document.getElementById("download-link");
+        a.href = url;
+        a.download = j.config_filename || (username + "_config.txt");
+      }catch(e){
+        document.getElementById("proto-note").textContent = "Error loading config.";
+      }
+    })();
   </script>
 </body>
 </html>
