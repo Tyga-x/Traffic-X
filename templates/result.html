@@ -10,122 +10,44 @@
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
   <style>
-    /* ===== Background & Base ===== */
-    @keyframes gradientBackground {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-
-    :root{
-      --primary:#05B031;
-      --glass: rgba(255,255,255,.1);
-      --glass-2: rgba(255,255,255,.18);
-      --text: #fff;
-      --shadow: 0 6px 20px rgba(0,0,0,.3);
-    }
-
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
-      color: var(--text);
-      background: linear-gradient(135deg, #1e1f26, #641B9F, #263D9B, #009688);
-      background-size: 400% 400%;
-      animation: gradientBackground 15s ease infinite;
-      min-height: 100vh;
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 32px 20px 48px;
-    }
-
-    .topbar{
-      display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:24px;
-    }
-    .brand{
-      display:flex;align-items:center;gap:10px;font-size:24px;font-weight:800;letter-spacing:1px;
-    }
-    .brand i{font-size:24px}
-    .actions{display:flex;gap:10px}
-    .btn{
-      background: var(--primary); color:#fff; border:none; border-radius:10px;
-      padding:10px 14px; cursor:pointer; box-shadow: var(--shadow); font-weight:600;
-    }
-    .btn.outline{ background: transparent; border:1px solid #ffffff44 }
+    @keyframes gradientBackground { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+    :root{ --primary:#05B031; --glass:rgba(255,255,255,.1); --glass-2:rgba(255,255,255,.18); --text:#fff; --shadow:0 6px 20px rgba(0,0,0,.3) }
+    body{ margin:0; font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif; color:var(--text);
+          background:linear-gradient(135deg,#1e1f26,#641B9F,#263D9B,#009688); background-size:400% 400%; animation:gradientBackground 15s ease infinite; min-height:100vh }
+    .container{ max-width:1200px; margin:0 auto; padding:32px 20px 48px }
+    .topbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:24px }
+    .brand{ display:flex; align-items:center; gap:10px; font-size:24px; font-weight:800; letter-spacing:1px }
+    .brand i{ font-size:24px }
+    .actions{ display:flex; gap:10px }
+    .btn{ background:var(--primary); color:#fff; border:none; border-radius:10px; padding:10px 14px; cursor:pointer; box-shadow:var(--shadow); font-weight:600 }
+    .btn.outline{ background:transparent; border:1px solid #ffffff44 }
     .btn:hover{ filter:brightness(.95) }
-
-    .grid{
-      display:grid; gap:20px;
-      grid-template-columns: repeat(3, 1fr);
-    }
-    @media (max-width: 992px){ .grid{ grid-template-columns:repeat(2,1fr);} }
-    @media (max-width: 600px){ .grid{ grid-template-columns:1fr;} }
-
-    .card{
-      background: var(--glass);
-      backdrop-filter: blur(12px);
-      box-shadow: var(--shadow);
-      border-radius: 16px;
-      padding: 22px;
-      position: relative;
-      transition: transform .15s ease;
-    }
-    .card:hover{ transform: translateY(-3px); }
-
-    .card h3{
-      margin:0 0 14px; font-size:18px; display:flex; align-items:center; gap:10px; font-weight:700;
-    }
+    .grid{ display:grid; gap:20px; grid-template-columns:repeat(3,1fr) }
+    @media (max-width:992px){ .grid{ grid-template-columns:repeat(2,1fr) } }
+    @media (max-width:600px){ .grid{ grid-template-columns:1fr } }
+    .card{ background:var(--glass); backdrop-filter:blur(12px); box-shadow:var(--shadow); border-radius:16px; padding:22px; position:relative; transition:transform .15s ease }
+    .card:hover{ transform:translateY(-3px) }
+    .card h3{ margin:0 0 14px; font-size:18px; display:flex; align-items:center; gap:10px; font-weight:700 }
     .card h3 i{ font-size:20px }
-
-    .metric{
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      background: var(--glass-2); border-radius:12px; padding:10px 12px; margin:8px 0;
-    }
+    .metric{ display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--glass-2); border-radius:12px; padding:10px 12px; margin:8px 0 }
     .metric .label{ display:flex; align-items:center; gap:8px; font-weight:600 }
-    .badge{
-      background:#ffffff22; border:1px solid #ffffff33; padding:4px 8px; border-radius:999px; font-size:12px;
-    }
-
-    .progress-container{
-      background: rgba(255,255,255,.25);
-      border-radius: 6px; height:10px; overflow:hidden; margin-top:8px;
-    }
-    .progress-bar{
-      height: 100%; width: 0%; background: var(--primary);
-      transition: width .8s ease, background-color .4s ease;
-    }
-
-    .toggle{
-      width:44px; height:24px; background:#999; border-radius:999px; position:relative; cursor:pointer; flex-shrink:0;
-    }
-    .toggle::after{
-      content:""; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:left .2s ease;
-    }
-    .toggle.active{ background: var(--primary); }
-    .toggle.active::after{ left:23px; }
-
+    .badge{ background:#ffffff22; border:1px solid #ffffff33; padding:4px 8px; border-radius:999px; font-size:12px }
+    .progress-container{ background:rgba(255,255,255,.25); border-radius:6px; height:10px; overflow:hidden; margin-top:8px }
+    .progress-bar{ height:100%; width:0%; background:var(--primary); transition:width .8s ease, background-color .4s ease }
+    .toggle{ width:44px; height:24px; background:#999; border-radius:999px; position:relative; cursor:pointer; flex-shrink:0 }
+    .toggle::after{ content:""; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:left .2s ease }
+    .toggle.active{ background:var(--primary) }
+    .toggle.active::after{ left:23px }
     .muted{ opacity:.85; font-size:13px }
-
     .chart{ width:100%; height:260px }
     .chart.small{ height:220px }
-
-    .pill{
-      position:absolute; top:12px; right:12px; font-size:12px; padding:6px 10px; border-radius:999px;
-      background:#ffffff22; border:1px solid #ffffff33;
-    }
+    .pill{ position:absolute; top:12px; right:12px; font-size:12px; padding:6px 10px; border-radius:999px; background:#ffffff22; border:1px solid #ffffff33 }
     .ok{ color:#9cffb1 } .warn{ color:#ffd16b } .danger{ color:#ff9a9a }
-
-    .footer{
-      text-align:center; margin-top:26px; color:#ddd; font-size:12px;
-    }
+    .footer{ text-align:center; margin-top:26px; color:#ddd; font-size:12px }
   </style>
 </head>
 <body>
   <div class="container">
-
-    <!-- Top -->
     <div class="topbar">
       <div class="brand">
         <i class="fa-solid fa-traffic-light"></i> TRAFFIC-X
@@ -136,14 +58,10 @@
       </div>
     </div>
 
-    <!-- GRID -->
     <div class="grid">
-
-      <!-- User Overview -->
       <div class="card">
         <span class="pill"><i class="fa-regular fa-user"></i> {{ email }}</span>
         <h3><i class="fa-solid fa-id-badge"></i>User Overview</h3>
-
         <div class="metric">
           <div class="label"><i class="fa-solid fa-shield-heart"></i> Config Status</div>
           <div style="display:flex;align-items:center;gap:10px">
@@ -151,76 +69,48 @@
             <div id="config-toggle" class="toggle"></div>
           </div>
         </div>
-
         <div class="metric">
           <div class="label"><i class="fa-solid fa-calendar-xmark"></i> Expiry</div>
           <div class="badge" id="expiry-badge">{{ expiry_date }}</div>
         </div>
-
         <div class="muted"><code>update-status</code>.</div>
       </div>
 
-      <!-- Usage -->
       <div class="card">
         <h3><i class="fa-solid fa-gauge-high"></i>Usage</h3>
-
-        <div class="metric">
-          <div class="label"><i class="fa-solid fa-upload"></i> Uploaded</div>
-          <div class="badge">{{ up }}</div>
-        </div>
+        <div class="metric"><div class="label"><i class="fa-solid fa-upload"></i> Uploaded</div><div class="badge">{{ up }}</div></div>
         <div class="progress-container"><div id="uploaded-bar" class="progress-bar"></div></div>
-
-        <div class="metric">
-          <div class="label"><i class="fa-solid fa-download"></i> Downloaded</div>
-          <div class="badge">{{ down }}</div>
-        </div>
+        <div class="metric"><div class="label"><i class="fa-solid fa-download"></i> Downloaded</div><div class="badge">{{ down }}</div></div>
         <div class="progress-container"><div id="downloaded-bar" class="progress-bar"></div></div>
-
-        <div class="metric">
-          <div class="label"><i class="fa-solid fa-hard-drive"></i> Limit</div>
-          <div class="badge">{{ total }}</div>
-        </div>
+        <div class="metric"><div class="label"><i class="fa-solid fa-hard-drive"></i> Limit</div><div class="badge">{{ total }}</div></div>
         <div class="progress-container"><div id="limit-bar" class="progress-bar"></div></div>
       </div>
 
-      <!-- Days to Expiry -->
       <div class="card">
         <h3><i class="fa-regular fa-clock"></i>Days to Expiry</h3>
         <div id="expiry-gauge" class="chart small"></div>
         <div class="muted" id="expiry-desc">—</div>
       </div>
 
-      <!-- Summary chart -->
       <div class="card">
         <h3><i class="fa-solid fa-chart-line"></i>Summary (Live)</h3>
         <div id="summary-chart" class="chart"></div>
         <div class="muted">Shows uploaded & downloaded compared to remaining quota.</div>
       </div>
 
-      <!-- Breakdown -->
       <div class="card">
         <h3><i class="fa-solid fa-chart-pie"></i>Usage Breakdown</h3>
         <div id="breakdown" class="chart small"></div>
       </div>
 
-      <!-- Quick Info -->
       <div class="card">
         <h3><i class="fa-solid fa-circle-info"></i>Quick Info</h3>
-        <div class="metric">
-          <div class="label"><i class="fa-solid fa-signal"></i> Total Used</div>
-          <div class="badge" id="total-used-badge">—</div>
-        </div>
-        <div class="metric">
-          <div class="label"><i class="fa-solid fa-box-archive"></i> Remaining</div>
-          <div class="badge" id="remaining-badge">—</div>
-        </div>
-        <div class="metric">
-          <div class="label"><i class="fa-solid fa-percent"></i> Utilization</div>
-          <div class="badge" id="utilization-badge">—</div>
-        </div>
+        <div class="metric"><div class="label"><i class="fa-solid fa-signal"></i> Total Used</div><div class="badge" id="total-used-badge">—</div></div>
+        <div class="metric"><div class="label"><i class="fa-solid fa-box-archive"></i> Remaining</div><div class="badge" id="remaining-badge">—</div></div>
+        <div class="metric"><div class="label"><i class="fa-solid fa-percent"></i> Utilization</div><div class="badge" id="utilization-badge">—</div></div>
       </div>
 
-      <!-- NEW: Client Config (QR + Copy + Download) -->
+      <!-- Client Config (QR + Copy + Download) -->
       <div class="card">
         <h3><i class="fa-solid fa-qrcode"></i> Client Config</h3>
         <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
@@ -245,7 +135,6 @@
   </div>
 
   <script>
-    // ===== Helpers to parse human-readable sizes from Flask (e.g., "4.2 GB") =====
     function parseNum(str){ if (!str) return 0; const m=String(str).match(/[\d.]+/); return m?parseFloat(m[0]):0; }
     function unit(str){ if (!str) return ""; const m=String(str).match(/[a-zA-Z]+/g); return m?m.join(""):""; }
     function toMB(value, u){
@@ -254,17 +143,15 @@
       if (U.includes("GB")) return value*1024;
       if (U.includes("MB")) return value;
       if (U.includes("KB")) return value/1024;
-      return value; // assume MB
+      return value;
     }
 
-    // ===== Read values from Jinja =====
     const upStr = "{{ up }}";
     const downStr = "{{ down }}";
     const totalStr = "{{ total }}";
     const userStatus = ("{{ user_status }}".trim().toLowerCase() === "enabled");
     const expiryStr = "{{ expiry_date }}";
 
-    // Convert to MB for math
     let upMB   = toMB(parseNum(upStr), unit(upStr));
     let downMB = toMB(parseNum(downStr), unit(downStr));
     let totalMB= toMB(parseNum(totalStr), unit(totalStr));
@@ -272,7 +159,6 @@
     let remainingMB = Math.max(totalMB - usedMB, 0);
     let utilization = totalMB>0 ? (usedMB/totalMB*100) : 0;
 
-    // ===== Update quick badges =====
     const fmt = (mb) => {
       if (mb >= 1024*1024) return (mb/1024/1024).toFixed(2)+" TB";
       if (mb >= 1024) return (mb/1024).toFixed(2)+" GB";
@@ -282,7 +168,6 @@
     document.getElementById("remaining-badge").textContent  = fmt(remainingMB);
     document.getElementById("utilization-badge").textContent = utilization.toFixed(1)+"%";
 
-    // ===== Progress bars =====
     function setBar(id, valueMB, maxMB){
       const el = document.getElementById(id);
       if (!el || maxMB<=0) return;
@@ -299,7 +184,6 @@
       setBar("limit-bar", usedMB, totalMB);
     }, 300);
 
-    // ===== Toggle handling =====
     const toggle = document.getElementById("config-toggle");
     const statusText = document.getElementById("status-text");
     function applyStatusUI(enabled){
@@ -318,7 +202,6 @@
       }).catch(()=>{});
     });
 
-    // ===== Expiry gauge & description =====
     function daysUntil(dateStr){
       const d = new Date(dateStr.replace(" ", "T")+"Z");
       if (isNaN(d.getTime())) return null;
@@ -335,7 +218,6 @@
       expiryDesc.innerHTML = `<span class="${dLeft<=3?'danger': dLeft<=7?'warn':'ok'}">${dLeft} day(s) remaining</span>`;
     }
 
-    // ===== Charts (ApexCharts) =====
     const summaryOptions = {
       chart: { type: 'line', height: 260, foreColor:'#fff', toolbar: { show: false } },
       stroke: { width: [0, 0, 3] },
@@ -383,10 +265,7 @@
       plotOptions:{
         radialBar:{
           hollow:{ size:'58%' },
-          dataLabels:{
-            name:{ fontSize:'12px' },
-            value:{ formatter:(v)=> v.toFixed(0)+'%' }
-          }
+          dataLabels:{ name:{ fontSize:'12px' }, value:{ formatter:(v)=> v.toFixed(0)+'%' } }
         }
       }
     };
@@ -400,21 +279,21 @@
         if(!r.ok){ document.getElementById("proto-note").textContent = "Config not available."; return; }
         const j = await r.json();
 
-        // Prefer VLESS → VMess → TROJAN → fallback text
-        const link = j.vless_link || j.vmess_link || j.trojan_link || j.config_text || "";
+        // Prefer VLESS → VMess → TROJAN → SS → fallback
+        const link = j.vless_link || j.vmess_link || j.trojan_link || j.ss_link || j.config_text || "";
 
-        document.getElementById("qr-img").src = j.qr_datauri;
+        document.getElementById("qr-img").src = j.qr_datauri || "";
         document.getElementById("link-badge").textContent = link || "—";
         document.getElementById("proto-note").textContent =
           j.protocol ? `Protocol: ${j.protocol}` : "Protocol not detected";
 
         document.getElementById("copy-link").onclick = async ()=>{
           if(!link) return;
-          const ok = await navigator.clipboard.writeText(link).then(()=>true).catch(()=>false);
-          alert(ok ? "Client link copied!" : "Copy failed.");
+          try { await navigator.clipboard.writeText(link); alert("Client link copied!"); }
+          catch { alert("Copy failed."); }
         };
 
-        const blob = new Blob([j.config_text||link], {type:"text/plain"});
+        const blob = new Blob([j.config_text || link], {type:"text/plain"});
         const url = URL.createObjectURL(blob);
         const a = document.getElementById("download-link");
         a.href = url;
