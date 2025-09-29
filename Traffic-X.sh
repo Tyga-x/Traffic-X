@@ -108,12 +108,175 @@ else
     fi
 fi
 
+# ---------- NEW: write the tx_builders module ----------
+echo "Writing tx_builders.py..."
+cat > tx_builders.py <<'PYEOF'
+# tx_builders.py — centralized builders for VLESS / VMess / Trojan / Shadowsocks
+import os, json, base64, io
+from typing import Dict, Any, Tuple, Optional
+
+try:
+    import qrcode
+except Exception:
+    qrcode = None
+
+FALLBACK_DOMAIN = os.getenv("DOMAIN", "localhost")
+
+def jload(s):
+    if not s: return {}
+    if isinstance(s, dict): return s
+    try: return json.loads(s)
+    except Exception:
+        try: return json.loads(str(s).replace("'", '"'))
+        except Exception: return {}
+
+def server_host(stream: Dict[str, Any]) -> str:
+    tls = stream.get("tlsSettings", {}) if isinstance(stream, dict) else {}
+    ws  = stream.get("wsSettings", {}) if isinstance(stream, dict) else {}
+    return tls.get("serverName") or (ws.get("headers", {}) or {}).get("Host") or FALLBACK_DOMAIN
+
+def client_key(client: Dict[str, Any]) -> str:
+    return client.get("id") or client.get("uuid") or client.get("password") or ""
+
+def qr_data_uri(text: str) -> Optional[str]:
+    if not (qrcode and text): return None
+    qr = qrcode.QRCode(border=1)
+    qr.add_data(text); qr.make(fit=True)
+    img = qr.make_image()
+    buf = io.BytesIO(); img.save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+def build_vless(client: Dict[str, Any], inbound: Dict[str, Any]) -> str:
+    stream = jload(inbound.get("stream_settings"))
+    net = stream.get("network", "tcp")
+    host = server_host(stream)
+    sec  = stream.get("security", "none")
+    port = str(inbound.get("port"))
+    uid  = client_key(client)
+    qs = [f"type={net}", f"security={sec}", "encryption=none"]
+    if net == "ws":
+        ws = stream.get("wsSettings", {}) or {}
+        path = ws.get("path", "/")
+        host_header = (ws.get("headers", {}) or {}).get("Host", "")
+        qs.append(f"path={path}")
+        if host_header: qs.append(f"host={host_header}")
+    elif net == "grpc":
+        g = stream.get("grpcSettings", {}) or {}
+        svc = g.get("serviceName", "")
+        qs.append("mode=gun")
+        if svc: qs.append(f"serviceName={svc}")
+    flow = client.get("flow")
+    if flow: qs.append(f"flow={flow}")
+    from urllib.parse import quote
+    tag = quote(client.get("email") or inbound.get("remark") or "node")
+    return f"vless://{uid}@{host}:{port}?{'&'.join(qs)}#{tag}"
+
+def build_vmess(client: Dict[str, Any], inbound: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
+    stream = jload(inbound.get("stream_settings"))
+    net = stream.get("network", "tcp")
+    host = server_host(stream)
+    sec  = stream.get("security", "none")
+    ws   = stream.get("wsSettings", {}) or {}
+    path = ws.get("path", "/")
+    vm = {
+        "v":"2",
+        "ps": client.get("email") or inbound.get("remark") or "node",
+        "add": host,
+        "port": str(inbound.get("port")),
+        "id":  client_key(client),
+        "aid": "0",
+        "net": net,
+        "type":"none",
+        "host": (ws.get("headers", {}) or {}).get("Host",""),
+        "path": path,
+        "tls": "" if sec=="none" else sec
+    }
+    b64 = base64.b64encode(json.dumps(vm, separators=(",",":")).encode()).decode()
+    return "vmess://" + b64, vm
+
+def build_trojan(client: Dict[str, Any], inbound: Dict[str, Any]) -> str:
+    stream = jload(inbound.get("stream_settings"))
+    net = stream.get("network","tcp")
+    host = server_host(stream)
+    sec  = stream.get("security","tls")
+    tls  = (stream.get("tlsSettings", {}) or {})
+    sni  = tls.get("serverName") or host
+    alpn = tls.get("alpn")
+    pwd  = client_key(client)
+    port = str(inbound.get("port"))
+    qs = [f"security={sec}", f"sni={sni}"]
+    if isinstance(alpn, list) and alpn:
+        qs.append("alpn=" + ",".join(alpn))
+    if net == "ws":
+        ws = stream.get("wsSettings", {}) or {}
+        path = ws.get("path","/")
+        host_header = (ws.get("headers", {}) or {}).get("Host","")
+        qs += ["type=ws", f"path={path}"]
+        if host_header: qs.append(f"host={host_header}")
+    elif net == "grpc":
+        g = stream.get("grpcSettings", {}) or {}
+        svc = g.get("serviceName","")
+        qs += ["type=grpc"]
+        if svc: qs.append(f"serviceName={svc}")
+    from urllib.parse import quote
+    tag = quote(client.get("email") or inbound.get("remark") or "node")
+    return f"trojan://{pwd}@{host}:{port}?{'&'.join(qs)}#{tag}"
+
+def build_ss(client: Dict[str, Any], inbound: Dict[str, Any]) -> Optional[str]:
+    method = client.get("method")
+    pwd = client.get("password")
+    if not (method and pwd): return None
+    stream = jload(inbound.get("stream_settings"))
+    host = server_host(stream)
+    port = str(inbound.get("port"))
+    from urllib.parse import quote
+    userinfo = base64.urlsafe_b64encode(f"{method}:{pwd}".encode()).decode().rstrip("=")
+    tag = quote(client.get("email") or inbound.get("remark") or "node")
+    return f"ss://{userinfo}@{host}:{port}#{tag}"
+
+def build_best(inbound: Dict[str, Any], client: Dict[str, Any]) -> Dict[str, Any]:
+    proto = (inbound.get("protocol") or "").lower()
+    out = {
+        "protocol": proto,
+        "vless_link": None,
+        "vmess_link": None,
+        "vmess_json": None,
+        "trojan_link": None,
+        "ss_link": None,
+        "config_text": "",
+        "config_filename": "",
+        "qr_datauri": None
+    }
+    link = ""
+    if proto == "vless":
+        link = out["vless_link"] = build_vless(client, inbound)
+        out["config_filename"] = f"{client.get('email','user')}_vless.txt"
+    elif proto == "vmess":
+        link, vmj = build_vmess(client, inbound)
+        out["vmess_link"] = link
+        out["vmess_json"] = vmj
+        out["config_filename"] = f"{client.get('email','user')}_vmess.txt"
+    elif proto == "trojan":
+        link = out["trojan_link"] = build_trojan(client, inbound)
+        out["config_filename"] = f"{client.get('email','user')}_trojan.txt"
+    elif proto == "shadowsocks":
+        link = out["ss_link"] = build_ss(client, inbound) or ""
+        out["config_filename"] = f"{client.get('email','user')}_ss.txt"
+    else:
+        link = out["vless_link"] = build_vless(client, inbound)
+        out["protocol"] = "vless"
+        out["config_filename"] = f"{client.get('email','user')}_config.txt"
+    out["config_text"] = link
+    out["qr_datauri"] = qr_data_uri(link) if link else None
+    return out
+PYEOF
+
 echo "Writing app.py..."
 cat > app.py <<'EOL'
 from flask import Flask, request, render_template, jsonify, send_file
 import sqlite3, json, os, base64, io, psutil, requests, time, shutil, subprocess
 from datetime import datetime
-import qrcode
+from tx_builders import build_best   # NEW: centralized builders
 
 app = Flask(__name__)
 
@@ -129,111 +292,6 @@ def convert_bytes(byte_size):
     if byte_size < 1024*1024*1024: return f"{round(byte_size/(1024*1024),2)} MB"
     if byte_size < 1024*1024*1024*1024: return f"{round(byte_size/(1024*1024*1024),2)} GB"
     return f"{round(byte_size/(1024*1024*1024*1024),2)} TB"
-
-def _json(text):
-    if not text: return {}
-    try:
-        return json.loads(text)
-    except Exception:
-        try:
-            return json.loads(str(text).replace("'", '"'))
-        except Exception:
-            return {}
-
-def _server_host(stream):
-    # Prefer TLS SNI -> WS Host -> fallback DOMAIN
-    tls = stream.get("tlsSettings", {}) if isinstance(stream, dict) else {}
-    ws  = stream.get("wsSettings", {}) if isinstance(stream, dict) else {}
-    return tls.get("serverName") or (ws.get("headers", {}) or {}).get("Host") or fallback_domain
-
-def _client_key(client):
-    # vless/vmess -> id/uuid; trojan -> password
-    return client.get("id") or client.get("uuid") or client.get("password")
-
-def _qr_data_uri(text):
-    qr = qrcode.QRCode(border=1)
-    qr.add_data(text); qr.make(fit=True)
-    img = qr.make_image()
-    buf = io.BytesIO(); img.save(buf, format="PNG")
-    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
-
-# ================== link builders (VLESS / VMess / Trojan) ==================
-def _build_vless(client, inbound):
-    stream = _json(inbound.get("stream_settings"))
-    net = stream.get("network","tcp")                              # tcp/ws/grpc
-    host = _server_host(stream)
-    path = (stream.get("wsSettings",{}) or {}).get("path","/")     # ws path
-    sec  = stream.get("security","none")                           # none/tls
-    uid  = _client_key(client)
-    port = str(inbound.get("port"))
-    from urllib.parse import quote
-    tag = quote(client.get("email") or inbound.get("remark") or "node")
-
-    q = f"type={net}&security={sec}&encryption=none"
-    if net == "ws":
-        q += f"&path={path}"
-        wsh = (stream.get("wsSettings",{}) or {}).get("headers",{}).get("Host","")
-        if wsh: q += f"&host={wsh}"
-    elif net == "grpc":
-        svc = (stream.get("grpcSettings",{}) or {}).get("serviceName","")
-        q += f"&mode=gun&serviceName={svc}"
-
-    return f"vless://{uid}@{host}:{port}?{q}#{tag}"
-
-def _build_vmess_link(client, inbound):
-    # vmess://<base64(JSON)>
-    stream = _json(inbound.get("stream_settings"))
-    net = stream.get("network","tcp")
-    host = _server_host(stream)
-    path = (stream.get("wsSettings",{}) or {}).get("path","/")
-    sec  = stream.get("security","none")
-    vm = {
-        "v":"2",
-        "ps": client.get("email") or inbound.get("remark") or "node",
-        "add": host,
-        "port": str(inbound.get("port")),
-        "id":  _client_key(client),
-        "aid": "0",
-        "net": net,
-        "type":"none",
-        "host": (stream.get("wsSettings",{}) or {}).get("headers",{}).get("Host",""),
-        "path": path,
-        "tls":  "" if sec=="none" else sec
-    }
-    b64 = base64.b64encode(json.dumps(vm, separators=(",",":")).encode()).decode()
-    return "vmess://" + b64, vm
-
-def _build_trojan_link(client, inbound):
-    # trojan://password@host:port?security=tls&sni=...&alpn=http/1.1,http2[&type=ws&path=/...&host=...]#tag
-    stream = _json(inbound.get("stream_settings"))
-    net = stream.get("network","tcp")
-    host = _server_host(stream)
-    sec  = stream.get("security","tls")  # trojan usually with tls
-    tls  = (stream.get("tlsSettings", {}) or {})
-    sni  = tls.get("serverName") or host
-    pwd  = _client_key(client)           # trojan uses "password"
-    port = str(inbound.get("port"))
-    from urllib.parse import quote
-    tag  = quote(client.get("email") or inbound.get("remark") or "node")
-
-    # optional ALPN
-    alpn = tls.get("alpn")
-    if isinstance(alpn, list): alpn = ",".join(alpn)
-
-    q = f"security={sec}&sni={sni}"
-    if alpn: q += f"&alpn={alpn}"
-
-    if net == "ws":
-        ws  = (stream.get("wsSettings", {}) or {})
-        path = ws.get("path", "/")
-        wsh  = (ws.get("headers", {}) or {}).get("Host", "")
-        q += f"&type=ws&path={path}"
-        if wsh: q += f"&host={wsh}"
-    elif net == "grpc":
-        svc = (stream.get("grpcSettings", {}) or {}).get("serviceName", "")
-        q += f"&type=grpc&serviceName={svc}"
-
-    return f"trojan://{pwd}@{host}:{port}?{q}#{tag}"
 
 # ================== existing routes (kept) ==================
 @app.route('/')
@@ -365,41 +423,15 @@ def user_config():
             return jsonify({"error":"user not found"}), 404
 
         inbound = { "id": row[0], "protocol": row[1], "port": row[2], "remark": row[3], "stream_settings": row[4] }
-        client = _json(row[5])
-        proto = (inbound["protocol"] or "").lower()
+        client = json.loads(row[5]) if row[5] else {}
 
-        vless = vmess_link = trojan_link = None
-        vmess_json = None
+        built = build_best(inbound, client)
+        # Keep filename UX with username prefix
+        if built.get("config_filename") and username not in built["config_filename"]:
+            proto = (built.get("protocol") or "config").lower()
+            built["config_filename"] = f"{username}_{proto}.txt"
 
-        if proto == "vless":
-            vless = _build_vless(client, inbound)
-            config_text = vless
-            config_name = f"{username}_vless.txt"
-        elif proto == "vmess":
-            vmess_link, vmess_json = _build_vmess_link(client, inbound)
-            config_text = vmess_link
-            config_name = f"{username}_vmess.txt"
-        elif proto == "trojan":
-            trojan_link = _build_trojan_link(client, inbound)
-            config_text = trojan_link
-            config_name = f"{username}_trojan.txt"
-        else:
-            # best-effort default (keep compatible)
-            vless = _build_vless(client, inbound)
-            config_text = vless
-            config_name = f"{username}_config.txt"
-
-        return jsonify({
-            "username": username,
-            "protocol": inbound["protocol"],
-            "vless_link": vless,
-            "vmess_link": vmess_link,
-            "vmess_json": vmess_json,
-            "trojan_link": trojan_link,
-            "qr_datauri": _qr_data_uri(config_text),
-            "config_filename": config_name,
-            "config_text": config_text
-        })
+        return jsonify({"username": username, **built})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
