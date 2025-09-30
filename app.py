@@ -1,22 +1,12 @@
 # @fileOverview Check usage stats of X-SL
-# @author MasterHide
-# @Copyright © 2025 x404 MASTER™
-# @license MIT
-#
-# You may not reproduce or distribute this work, in whole or in part, 
-# without the express written consent of the copyright owner.
-#
-# For more information, visit: https://t.me/Dark_Evi
-
-from flask import Flask, request, render_template, jsonify
-import sqlite3
-import json
-import psutil
-import requests
+# author MasterHide, updated with DB-based link builders
+from flask import Flask, request, render_template, jsonify, send_file
+import sqlite3, json, psutil, requests, os, io
 from datetime import datetime
+from tx_builders import build_best  # NEW
 
 app = Flask(__name__)
-db_path = "/etc/x-ui/x-ui.db"  # Adjust path if necessary 
+db_path = os.getenv("DB_PATH", "/etc/x-ui/x-ui.db")  # same path, env override allowed
 
 def convert_bytes(byte_size):
     """Convert bytes to a human-readable format (MB, GB, TB)."""
@@ -44,12 +34,13 @@ def usage():
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         # Query to fetch client data
-        query = '''SELECT email, up, down, total, expiry_time, inbound_id FROM client_traffics WHERE email = ? OR id = ?'''
+        query = '''SELECT email, up, down, total, expiry_time, inbound_id 
+                   FROM client_traffics WHERE email = ? OR id = ?'''
         cursor.execute(query, (user_input, user_input))
         row = cursor.fetchone()
         if row:
             email, up, down, total, expiry_time, inbound_id = row
-            # **Fixed expiry time handling**
+            # Fixed expiry time handling
             expiry_date = "Invalid Date"
             if expiry_time and isinstance(expiry_time, (int, float)):
                 expiry_timestamp = expiry_time / 1000 if expiry_time > 9999999999 else expiry_time
@@ -57,6 +48,7 @@ def usage():
                     expiry_date = datetime.utcfromtimestamp(expiry_timestamp).strftime('%Y-%m-%d %H:%M:%S')
                 except (ValueError, OSError):
                     expiry_date = "Invalid Date"
+
             # Query to fetch totalGB and user-specific enable status
             inbound_query = '''SELECT settings FROM inbounds WHERE id = ?'''
             cursor.execute(inbound_query, (inbound_id,))
@@ -75,7 +67,7 @@ def usage():
                 except json.JSONDecodeError:
                     totalGB = "Invalid JSON Data"
             conn.close()
-            # Convert to human-readable format
+
             up = convert_bytes(up)
             down = convert_bytes(down)
             total = convert_bytes(total)
@@ -101,7 +93,7 @@ def update_status():
     try:
         data = request.get_json()
         new_status = data.get('status')  # True or False
-        # Update the status in the database (implement this logic)
+        # Update the status in the database (implement if needed)
         print(f"Updating status to: {new_status}")
         return jsonify({"status": "success", "message": "Status updated"})
     except Exception as e:
@@ -124,7 +116,7 @@ def server_status():
 def server_location():
     """Fetches server location based on public IP."""
     try:
-        response = requests.get("http://ip-api.com/json/")
+        response = requests.get("http://ip-api.com/json/", timeout=5)
         data = response.json()
         return jsonify({
             "country": data.get("country", "Unknown"),
@@ -138,6 +130,62 @@ def server_location():
 def ping():
     """Endpoint for ping test."""
     return jsonify({"status": "success", "message": "Pong!"})
+
+# ========= NEW: Build client config from local DB (no panel API) =========
+@app.route('/user_config')
+def user_config():
+    username = request.args.get('username', '').strip()
+    if not username:
+        return jsonify({"error": "username required"}), 400
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("""
+          SELECT i.id, i.protocol, i.port, i.remark, i.stream_settings, i.settings, c.value
+          FROM inbounds i, json_each(json_extract(i.settings,'$.clients')) c
+          WHERE json_extract(c.value,'$.email') = ?
+          LIMIT 1
+        """, (username,))
+        row = cur.fetchone()
+        conn.close()
+
+        if not row:
+            return jsonify({"error": "user not found"}), 404
+
+        inbound = {
+            "id": row[0],
+            "protocol": row[1],
+            "port": row[2],
+            "remark": row[3],
+            "stream_settings": row[4],  # TEXT(JSON)
+            "settings": row[5]          # TEXT(JSON)
+        }
+        client = json.loads(row[6]) if row[6] else {}
+
+        built = build_best(inbound, client)  # returns links + qr
+        if built.get("config_filename") and username not in built["config_filename"]:
+            proto = (built.get("protocol") or "config").lower()
+            built["config_filename"] = f"{username}_{proto}.txt"
+
+        return jsonify({"username": username, **built})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/download_config')
+def download_config():
+    username = request.args.get('username', '').strip()
+    if not username:
+        return jsonify({"error": "username required"}), 400
+
+    r = app.test_client().get(f"/user_config?username={username}")
+    if r.status_code != 200:
+        return r
+
+    j = r.get_json() or {}
+    text = j.get("config_text", "")
+    name = j.get("config_filename", "config.txt")
+    buf = io.BytesIO(text.encode()); buf.seek(0)
+    return send_file(buf, as_attachment=True, download_name=name, mimetype="text/plain")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=$PORT, debug=False)
