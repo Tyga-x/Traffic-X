@@ -104,9 +104,11 @@ pip install --upgrade pip
 if [ -f "requirements.txt" ]; then
   pip install -r requirements.txt
 else
-  pip install flask gunicorn psutil requests
+  # Pin Flask + Werkzeug to compatible versions
+  pip install "flask==2.2.5" "werkzeug==2.2.3" gunicorn psutil requests
 fi
 deactivate
+
 
 # -------- SSL setup (robust + fixed acme.sh path) --------
 SSL_CONTEXT=""   # initialize so it's always defined (avoids 'unbound variable')
