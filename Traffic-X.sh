@@ -29,7 +29,7 @@ while true; do
             ;;
         2)
             echo "Uninstalling Traffic-X..."
-            bash <(curl -s https://raw.githubusercontent.com/Tyga-x/Traffic-X/main/rm-TX.sh)
+            bash <(curl -s https://github.com/Tyga-x/Traffic-X/raw/main/rm-TX.sh)
             echo "Traffic-X has been uninstalled."
             exit 0
             ;;
@@ -46,7 +46,7 @@ done
 # Ask user for necessary information
 echo "Enter your OS username (e.g., ubuntu):"
 read USERNAME
-echo "Enter your server domain (e.g.your_domain.com):"
+echo "Enter your server domain (e.g. your_domain.com or IP):"
 read SERVER_IP
 echo "Enter the port (default: 5000):"
 read PORT
@@ -104,7 +104,7 @@ source venv/bin/activate
 # Install Flask, Gunicorn, and any other required Python libraries
 echo "Installing Flask, Gunicorn, and dependencies..."
 pip install --upgrade pip
-pip install flask gunicorn psutil requests
+pip install flask gunicorn psutil requests 'qrcode[pil]'
 
 # Configure the Flask app to run on the specified port
 echo "Configuring Flask app..."
@@ -123,10 +123,10 @@ else
     curl https://get.acme.sh | sh -s email=$USERNAME@$SERVER_IP
     ~/.acme.sh/acme.sh --issue --force --standalone -d "$DOMAIN" \
         --fullchain-file "/var/lib/Traffic-X/certs/$DOMAIN.cer" \
-        --key-file "/var/lib/Traffic-X/certs/$DOMAIN.cer.key"
+        --key-file "/var/lib/Traffic-X/certs/$DOMAIN.cer.key" || true
     # Fix ownership of the generated certificates
-    sudo chown $USERNAME:$USERNAME /var/lib/Traffic-X/certs/$DOMAIN.cer
-    sudo chown $USERNAME:$USERNAME /var/lib/Traffic-X/certs/$DOMAIN.cer.key
+    sudo chown $USERNAME:$USERNAME /var/lib/Traffic-X/certs/$DOMAIN.cer || true
+    sudo chown $USERNAME:$USERNAME /var/lib/Traffic-X/certs/$DOMAIN.cer.key || true
     # Verify certificate generation
     if [ ! -f "/var/lib/Traffic-X/certs/$DOMAIN.cer" ] || [ ! -f "/var/lib/Traffic-X/certs/$DOMAIN.cer.key" ]; then
         echo "Failed to generate SSL certificates. Disabling SSL."
@@ -137,252 +137,14 @@ else
     fi
 fi
 
-# app.py with new features (server metrics, network traffic, provider detection)
+# =================== Write tx_builders.py (NEW) ===================
+cat > tx_builders.py <<'PYEOF'
+<PASTE tx_builders.py FROM SECTION 3 BELOW VERBATIM>
+PYEOF
+
+# =================== Write app.py (UPDATED) ===================
 cat > app.py <<EOL
-from flask import Flask, request, render_template, jsonify
-import sqlite3
-import json
-import psutil
-import requests
-from datetime import datetime
-import os
-
-# NEW: imports for live throughput and optional per-connection snapshot
-import time
-import shutil
-import subprocess
-
-app = Flask(__name__)
-db_path = os.getenv("DB_PATH", "/etc/x-ui/x-ui.db")
-
-def convert_bytes(byte_size):
-    """Convert bytes to a human-readable format (MB, GB, TB)."""
-    if byte_size is None:
-        return "0 Bytes"
-    if byte_size < 1024:
-        return f"{byte_size} Bytes"
-    elif byte_size < 1024 * 1024:
-        return f"{round(byte_size / 1024, 2)} KB"
-    elif byte_size < 1024 * 1024 * 1024:
-        return f"{round(byte_size / (1024 * 1024), 2)} MB"
-    elif byte_size < 1024 * 1024 * 1024 * 1024:
-        return f"{round(byte_size / (1024 * 1024 * 1024), 2)} GB"
-    else:
-        return f"{round(byte_size / (1024 * 1024 * 1024 * 1024), 2)} TB"
-
-@app.route('/')
-def home():
-    return render_template('index.html')
-
-@app.route('/usage', methods=['POST'])
-def usage():
-    try:
-        user_input = request.form.get('user_input')
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        query = '''SELECT email, up, down, total, expiry_time, inbound_id 
-                   FROM client_traffics WHERE email = ? OR id = ?'''
-        cursor.execute(query, (user_input, user_input))
-        row = cursor.fetchone()
-        if row:
-            email, up, down, total, expiry_time, inbound_id = row
-            expiry_date = "Invalid Date"
-            if expiry_time and isinstance(expiry_time, (int, float)):
-                expiry_timestamp = expiry_time / 1000 if expiry_time > 9999999999 else expiry_time
-                try:
-                    expiry_date = datetime.utcfromtimestamp(expiry_timestamp).strftime('%Y-%m-%d %H:%M:%S')
-                except (ValueError, OSError):
-                    expiry_date = "Invalid Date"
-            inbound_query = '''SELECT settings FROM inbounds WHERE id = ?'''
-            cursor.execute(inbound_query, (inbound_id,))
-            inbound_row = cursor.fetchone()
-            totalGB = "Not Available"
-            user_status = "Disabled"
-            if inbound_row:
-                settings = inbound_row[0]
-                try:
-                    inbound_data = json.loads(settings)
-                    for client in inbound_data.get('clients', []):
-                        if client.get('email') == email:
-                            totalGB = client.get('totalGB', "Not Available")
-                            user_status = "Enabled" if client.get('enable', True) else "Disabled"
-                            break
-                except json.JSONDecodeError:
-                    totalGB = "Invalid JSON Data"
-            conn.close()
-            up = convert_bytes(up)
-            down = convert_bytes(down)
-            total = convert_bytes(total)
-            totalGB = convert_bytes(totalGB) if totalGB != "Not Available" else totalGB
-            return render_template('result.html',
-                                   email=email,
-                                   up=up,
-                                   down=down,
-                                   total=total,
-                                   expiry_date=expiry_date,
-                                   totalGB=totalGB,
-                                   user_status=user_status)
-        else:
-            conn.close()
-            return "No data found for this user."
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/update-status', methods=['POST'])
-def update_status():
-    try:
-        data = request.get_json()
-        new_status = data.get('status')
-        print(f"Updating status to: {new_status}")
-        return jsonify({"status": "success", "message": "Status updated"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/server-status')
-def server_status():
-    """Returns CPU, RAM, Disk usage, and cumulative Network counters (since boot)."""
-    try:
-        net_io = psutil.net_io_counters()
-        status = {
-            "cpu": psutil.cpu_percent(interval=1),
-            "ram": psutil.virtual_memory().percent,
-            "disk": psutil.disk_usage('/').percent,
-            "net_sent": convert_bytes(net_io.bytes_sent),
-            "net_recv": convert_bytes(net_io.bytes_recv)
-        }
-        return jsonify(status)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/server-location')
-def server_location():
-    try:
-        response = requests.get("http://ip-api.com/json/")
-        data = response.json()
-        return jsonify({
-            "country": data.get("country", "Unknown"),
-            "city": data.get("city", "Unknown"),
-            "ip": data.get("query", "Unknown")
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/cloud-provider')
-def cloud_provider():
-    """Detect cloud provider from sys_vendor if available."""
-    try:
-        provider = "Unknown"
-        if os.path.exists("/sys/class/dmi/id/sys_vendor"):
-            with open("/sys/class/dmi/id/sys_vendor", "r") as f:
-                vendor = f.read().strip().lower()
-                if "amazon" in vendor:
-                    provider = "AWS"
-                elif "digital" in vendor:
-                    provider = "DigitalOcean"
-                elif "linode" in vendor:
-                    provider = "Linode"
-                elif "google" in vendor:
-                    provider = "Google Cloud"
-        return jsonify({"provider": provider})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# ========= NEW: Live network throughput (Mbps) =========
-def _bytes_to_mbps(delta_bytes, seconds):
-    if seconds <= 0:
-        return 0.0
-    return (delta_bytes * 8) / (seconds * 1_000_000)  # Mbps
-
-@app.route('/net-live')
-def net_live():
-    """
-    Returns live network rates (Mbps) sampled over ~1s:
-    {
-      "total": {"rx_mbps": float, "tx_mbps": float},
-      "per_nic": {"eth0": {"rx_mbps":..., "tx_mbps":...}, ...}
-    }
-    """
-    try:
-        t0 = time.time()
-        c0_total = psutil.net_io_counters()
-        c0_per = psutil.net_io_counters(pernic=True)
-        time.sleep(1.0)
-        t1 = time.time()
-        c1_total = psutil.net_io_counters()
-        c1_per = psutil.net_io_counters(pernic=True)
-        dt = t1 - t0
-
-        total = {
-            "rx_mbps": round(_bytes_to_mbps(c1_total.bytes_recv - c0_total.bytes_recv, dt), 3),
-            "tx_mbps": round(_bytes_to_mbps(c1_total.bytes_sent - c0_total.bytes_sent, dt), 3),
-        }
-
-        per_nic = {}
-        for nic, s0 in c0_per.items():
-            s1 = c1_per.get(nic)
-            if not s1:
-                continue
-            per_nic[nic] = {
-                "rx_mbps": round(_bytes_to_mbps(s1.bytes_recv - s0.bytes_recv, dt), 3),
-                "tx_mbps": round(_bytes_to_mbps(s1.bytes_sent - s0.bytes_sent, dt), 3),
-            }
-
-        return jsonify({"total": total, "per_nic": per_nic})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# ========= NEW (optional): per-connection/process snapshot via nethogs =========
-@app.route('/net-connections')
-def net_connections():
-    """
-    Uses nethogs (-t -c 1 -d 1) to produce a 1-second snapshot.
-    Returns: { available, rows:[{iface,pid,user,process,tx_mbps,rx_mbps}, ...] }
-    Requires: sudo apt install nethogs, plus sudoers permission for the service user.
-    """
-    try:
-        if not shutil.which("nethogs"):
-            return jsonify({"available": False, "message": "nethogs not installed"}), 200
-
-        out = subprocess.check_output(
-            ["sudo", "nethogs", "-t", "-c", "1", "-d", "1"],
-            stderr=subprocess.STDOUT, text=True
-        )
-
-        rows = []
-        for line in out.splitlines():
-            parts = line.split()
-            if len(parts) >= 6 and parts[0] != "Refreshing:":
-                iface, pid, user = parts[0], parts[1], parts[2]
-                sent_kbs, recv_kbs = parts[-2], parts[-1]
-                process = " ".join(parts[3:-2])
-
-                def kb_to_mbps(s):
-                    try:
-                        return round((float(s) * 8) / 1000, 3)
-                    except:
-                        return 0.0
-
-                rows.append({
-                    "iface": iface,
-                    "pid": pid,
-                    "user": user,
-                    "process": process,
-                    "tx_mbps": kb_to_mbps(sent_kbs),
-                    "rx_mbps": kb_to_mbps(recv_kbs),
-                })
-
-        return jsonify({"available": True, "rows": rows})
-    except subprocess.CalledProcessError as e:
-        return jsonify({"available": False, "message": e.output}), 200
-    except Exception as e:
-        return jsonify({"available": False, "message": str(e)}), 200
-
-@app.route('/ping')
-def ping():
-    return jsonify({"status": "success", "message": "Pong!"})
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=$PORT, debug=False)
+<PASTE app.py FROM SECTION 2 BELOW VERBATIM>
 EOL
 
 # Set permissions for the database file
@@ -408,6 +170,7 @@ User=$USERNAME
 WorkingDirectory=/home/$USERNAME/Traffic-X
 ExecStart=/bin/bash -c 'source /home/$USERNAME/Traffic-X/venv/bin/activate && exec gunicorn -w 4 -b 0.0.0.0:$PORT $SSL_CONTEXT app:app'
 Environment="DB_PATH=/etc/x-ui/x-ui.db"
+Environment="DOMAIN=$SERVER_IP"
 Restart=always
 RestartSec=5
 StandardOutput=append:/var/log/traffic-x.log
