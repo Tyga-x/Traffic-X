@@ -23,6 +23,8 @@
       --glass-2: rgba(255,255,255,.18);
       --text: #fff;
       --shadow: 0 6px 20px rgba(0,0,0,.3);
+      --purple:#7B61FF;
+      --blue:#3A89FF;
     }
 
     body {
@@ -122,6 +124,47 @@
     .footer{
       text-align:center; margin-top:26px; color:#ddd; font-size:12px;
     }
+
+    /* ===== NEW: Client Config card bits (scoped) ===== */
+    .qr-wrap{
+      display:flex; flex-direction:column; align-items:center; gap:14px; margin-top:6px;
+    }
+    .qr-box{
+      width: 210px; height:210px; border-radius:16px;
+      background: #0c0f1f; display:flex; align-items:center; justify-content:center;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 0 0 1px #ffffff18;
+      position:relative;
+    }
+    .qr-box::after{
+      content:""; position:absolute; inset:-3px; border-radius:18px;
+      background: radial-gradient(80% 80% at 50% 0%, rgba(123,97,255,.35), transparent 60%),
+                  radial-gradient(80% 80% at 0% 100%, rgba(58,137,255,.25), transparent 60%);
+      filter: blur(12px); z-index:-1;
+    }
+    .qr-img{
+      width: 180px; height: 180px; image-rendering: pixelated; border-radius:12px;
+    }
+
+    .btn-row{ display:flex; gap:10px; }
+    .btn-icon{
+      width:54px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+      border:none; cursor:pointer; box-shadow: var(--shadow);
+      background: var(--blue);
+    }
+    .btn-icon i{ font-size:18px; color:#fff; }
+    .btn-purple{ background: var(--purple); }
+
+    /* Toast (top-right) */
+    .toast{
+      position:fixed; top:18px; right:18px; z-index:9999;
+      background: rgba(20,20,30,.85); color:#fff; padding:10px 14px; border-radius:10px;
+      border:1px solid #ffffff22; box-shadow: var(--shadow);
+      display:none; align-items:center; gap:10px; backdrop-filter: blur(6px);
+      font-weight:600; letter-spacing:.2px;
+    }
+    .toast.ok{ border-color: #1dd18566 }
+    .toast.err{ border-color: #ff6b6b66 }
+    .toast i{ font-size:16px }
   </style>
 </head>
 <body>
@@ -185,14 +228,14 @@
         <div class="progress-container"><div id="limit-bar" class="progress-bar"></div></div>
       </div>
 
-      <!-- Expiry Gauge (days left) -->
+      <!-- Days to Expiry -->
       <div class="card">
         <h3><i class="fa-regular fa-clock"></i>Days to Expiry</h3>
         <div id="expiry-gauge" class="chart small"></div>
         <div class="muted" id="expiry-desc">—</div>
       </div>
 
-      <!-- Summary Chart (Upload/Download vs Remaining) -->
+      <!-- Summary Chart -->
       <div class="card">
         <h3><i class="fa-solid fa-chart-line"></i>Summary (Live)</h3>
         <div id="summary-chart" class="chart"></div>
@@ -222,10 +265,32 @@
         </div>
       </div>
 
+      <!-- ===== NEW: Client Config (QR + Copy + Download) ===== -->
+      <div class="card">
+        <h3><i class="fa-solid fa-qrcode"></i>Client Config</h3>
+        <div class="qr-wrap">
+          <div class="qr-box">
+            <img id="qr-img" alt="QR" class="qr-img" src="" />
+          </div>
+          <div class="btn-row">
+            <button class="btn-icon" id="copy-link" title="Copy link">
+              <i class="fa-regular fa-clone"></i>
+            </button>
+            <a class="btn-icon btn-purple" id="download-link" title="Download .txt">
+              <i class="fa-solid fa-download"></i>
+            </a>
+          </div>
+          <div class="muted" id="proto-note">Loading client config…</div>
+        </div>
+      </div>
+
     </div>
 
     <div class="footer">© 2025 Traffic-X. All rights reserved.</div>
   </div>
+
+  <!-- Toast -->
+  <div id="tx-toast" class="toast"><i id="tx-toast-ico" class="fa-solid fa-circle-check"></i><span id="tx-toast-msg">Done</span></div>
 
   <script>
     // ===== Helpers to parse human-readable sizes from Flask (e.g., "4.2 GB") =====
@@ -246,6 +311,7 @@
     const totalStr = "{{ total }}";
     const userStatus = ("{{ user_status }}".trim().toLowerCase() === "enabled");
     const expiryStr = "{{ expiry_date }}";
+    const username = "{{ email }}";
 
     // Convert to MB for math
     let upMB   = toMB(parseNum(upStr), unit(upStr));
@@ -271,7 +337,6 @@
       if (!el || maxMB<=0) return;
       const p = Math.max(0, Math.min(100, valueMB/maxMB*100));
       el.style.width = p + "%";
-      // color ramp
       if (p <= 50) el.style.backgroundColor = "#05B031";
       else if (p <= 80) el.style.backgroundColor = "#FFD700";
       else if (p <= 98) el.style.backgroundColor = "#FFA500";
@@ -303,9 +368,9 @@
       }).catch(()=>{});
     });
 
-    // ===== Expiry gauge & copy =====
+    // ===== Expiry gauge =====
     function daysUntil(dateStr){
-      const d = new Date(dateStr.replace(" ", "T")+"Z"); // treat as UTC
+      const d = new Date(dateStr.replace(" ", "T")+"Z");
       if (isNaN(d.getTime())) return null;
       const now = new Date();
       return Math.ceil((d.getTime()-now.getTime())/(1000*60*60*24));
@@ -321,7 +386,6 @@
     }
 
     // ===== Charts (ApexCharts) =====
-    // Summary (columns for Upload/Download + line for Remaining)
     const summaryOptions = {
       chart: { type: 'line', height: 260, foreColor:'#fff', toolbar: { show: false } },
       stroke: { width: [0, 0, 3] },
@@ -343,7 +407,6 @@
     };
     new ApexCharts(document.querySelector("#summary-chart"), summaryOptions).render();
 
-    // Donut Breakdown (Up vs Down)
     const breakdownOptions = {
       chart: { type:'donut', height:220, foreColor:'#fff', toolbar: { show: false } },
       series: [ upMB, downMB ],
@@ -357,12 +420,10 @@
     };
     new ApexCharts(document.querySelector("#breakdown"), breakdownOptions).render();
 
-    // Radial Bar Gauge (Days to Expiry)
     let pct = 100;
     if (dLeft!==null){
-      // Assume 30-day cycles by default to get a simple "close to expiry" gauge
       const clamp = (x,min,max)=> Math.max(min, Math.min(max, x));
-      pct = clamp( (1 - (dLeft/30))*100 , 0, 100); // nearer expiry => higher %
+      pct = clamp( (1 - (dLeft/30))*100 , 0, 100);
     }
     const gaugeOptions = {
       chart: { type:'radialBar', height:220, foreColor:'#fff', toolbar: { show: false } },
@@ -380,6 +441,60 @@
       }
     };
     new ApexCharts(document.querySelector("#expiry-gauge"), gaugeOptions).render();
+
+    // ===== NEW: Toast helper =====
+    const toast = document.getElementById('tx-toast');
+    const toastIco = document.getElementById('tx-toast-ico');
+    const toastMsg = document.getElementById('tx-toast-msg');
+    let toastTimer = null;
+    function showToast(msg, ok=true){
+      toastMsg.textContent = msg;
+      toast.className = "toast " + (ok ? "ok":"err");
+      toastIco.className = ok ? "fa-solid fa-circle-check" : "fa-solid fa-circle-xmark";
+      toast.style.display = "flex";
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(()=> toast.style.display="none", 2200);
+    }
+
+    // ===== NEW: fetch user-config (QR + copy + download) =====
+    (async function loadConfigForUser(){
+      try{
+        const r = await fetch(`/user_config?username=${encodeURIComponent(username)}`);
+        if(!r.ok){
+          document.getElementById("proto-note").textContent = "Config not available.";
+          return;
+        }
+        const j = await r.json();
+
+        // Choose the best link in priority order
+        const link = j.vless_link || j.vmess_link || j.trojan_link || j.ss_link || j.config_text || "";
+        const qr = j.qr_datauri || "";
+
+        const qrImg = document.getElementById("qr-img");
+        if(qr) qrImg.src = qr; else qrImg.alt = "QR unavailable";
+
+        document.getElementById("proto-note").textContent =
+          j.protocol ? `Protocol: ${j.protocol.toUpperCase()}` : "Protocol not detected";
+
+        // Copy handler
+        document.getElementById("copy-link").onclick = async ()=>{
+          try{
+            if(!link) return showToast("Nothing to copy", false);
+            await navigator.clipboard.writeText(link);
+            showToast("Link copied to clipboard", true);
+          }catch(e){
+            showToast("Copy failed", false);
+          }
+        };
+
+        // Download handler (server route prepares .txt)
+        const a = document.getElementById("download-link");
+        a.href = `/download_config?username=${encodeURIComponent(username)}`;
+        a.setAttribute("download", j.config_filename || (username + "_config.txt"));
+      }catch(e){
+        document.getElementById("proto-note").textContent = "Error loading config.";
+      }
+    })();
   </script>
 </body>
 </html>
