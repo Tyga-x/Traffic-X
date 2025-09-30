@@ -30,17 +30,15 @@ def home():
 @app.route('/usage', methods=['POST'])
 def usage():
     try:
-        user_input = request.form.get('user_input')  # Get input from the form
+        user_input = request.form.get('user_input')
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        # Query to fetch client data
         query = '''SELECT email, up, down, total, expiry_time, inbound_id 
                    FROM client_traffics WHERE email = ? OR id = ?'''
         cursor.execute(query, (user_input, user_input))
         row = cursor.fetchone()
         if row:
             email, up, down, total, expiry_time, inbound_id = row
-            # Fixed expiry time handling
             expiry_date = "Invalid Date"
             if expiry_time and isinstance(expiry_time, (int, float)):
                 expiry_timestamp = expiry_time / 1000 if expiry_time > 9999999999 else expiry_time
@@ -49,12 +47,11 @@ def usage():
                 except (ValueError, OSError):
                     expiry_date = "Invalid Date"
 
-            # Query to fetch totalGB and user-specific enable status
             inbound_query = '''SELECT settings FROM inbounds WHERE id = ?'''
             cursor.execute(inbound_query, (inbound_id,))
             inbound_row = cursor.fetchone()
             totalGB = "Not Available"
-            user_status = "Disabled"  # Default to "Disabled" if user is not found
+            user_status = "Disabled"
             if inbound_row:
                 settings = inbound_row[0]
                 try:
@@ -92,8 +89,7 @@ def usage():
 def update_status():
     try:
         data = request.get_json()
-        new_status = data.get('status')  # True or False
-        # Update the status in the database (implement if needed)
+        new_status = data.get('status')
         print(f"Updating status to: {new_status}")
         return jsonify({"status": "success", "message": "Status updated"})
     except Exception as e:
@@ -101,7 +97,6 @@ def update_status():
 
 @app.route('/server-status')
 def server_status():
-    """Returns real-time CPU, RAM, and Disk usage."""
     try:
         status = {
             "cpu": psutil.cpu_percent(interval=1),
@@ -114,7 +109,6 @@ def server_status():
 
 @app.route('/server-location')
 def server_location():
-    """Fetches server location based on public IP."""
     try:
         response = requests.get("http://ip-api.com/json/", timeout=5)
         data = response.json()
@@ -128,7 +122,6 @@ def server_location():
 
 @app.route('/ping')
 def ping():
-    """Endpoint for ping test."""
     return jsonify({"status": "success", "message": "Pong!"})
 
 # ========= NEW: Build client config from local DB (no panel API) =========
@@ -162,7 +155,7 @@ def user_config():
         }
         client = json.loads(row[6]) if row[6] else {}
 
-        built = build_best(inbound, client)  # returns links + qr
+        built = build_best(inbound, client)
         if built.get("config_filename") and username not in built["config_filename"]:
             proto = (built.get("protocol") or "config").lower()
             built["config_filename"] = f"{username}_{proto}.txt"
@@ -177,7 +170,8 @@ def download_config():
     if not username:
         return jsonify({"error": "username required"}), 400
 
-    r = app.test_client().get(f"/user_config?username={username}")
+    with app.test_client() as c:
+        r = c.get(f"/user_config?username={username}")
     if r.status_code != 200:
         return r
 
@@ -188,4 +182,5 @@ def download_config():
     return send_file(buf, as_attachment=True, download_name=name, mimetype="text/plain")
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=$PORT, debug=False)
+    # When run directly (debug off for parity with gunicorn)
+    app.run(host='0.0.0.0', port=5000, debug=False)
