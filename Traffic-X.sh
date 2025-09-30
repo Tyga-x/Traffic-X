@@ -30,8 +30,8 @@ while true; do
     esac
 done
 
-# -------- NEW: Auto-detect username safely --------
-# Prefer SUDO_USER when run via sudo; fall back to whoami; final fallback: prompt.
+# -------- Auto-detect username (no prompt) --------
+# Prefer SUDO_USER when run via sudo; fall back to whoami; final fallback: logname.
 USERNAME="${SUDO_USER:-$(whoami)}"
 if [[ -z "$USERNAME" || "$USERNAME" == "root" ]]; then
   POSSIBLE_USER="$(logname 2>/dev/null || true)"
@@ -39,13 +39,16 @@ if [[ -z "$USERNAME" || "$USERNAME" == "root" ]]; then
     USERNAME="$POSSIBLE_USER"
   fi
 fi
-read -p "Detected system user: '$USERNAME'. Press Enter to accept or type another: " USERNAME_INPUT
-if [[ -n "${USERNAME_INPUT:-}" ]]; then USERNAME="$USERNAME_INPUT"; fi
+
 HOME_DIR=$(eval echo "~$USERNAME")
 if [[ ! -d "$HOME_DIR" ]]; then
   echo "User '$USERNAME' does not have a valid home directory ($HOME_DIR)."
   exit 1
 fi
+
+# Print detected user in yellow
+echo -e "✅ Auto-detected system user: \033[1;33m$USERNAME\033[0m"
+
 
 # -------- Ask for domain & port (same UX) --------
 read -p "Enter your server domain (e.g. your_domain.com): " DOMAIN
@@ -232,5 +235,5 @@ sudo systemctl start traffic-x
 # -------- Final messages --------
 PROTO="http"
 [ -n "$SSL_CONTEXT" ] && PROTO="https"
-echo "Installation complete! Your server is running at $PROTO://$DOMAIN:$PORT"
+echo "Installation complete! TRAFFIC - X  is Running Now at $PROTO://$DOMAIN:$PORT"
 [ -z "$SSL_CONTEXT" ] && echo "SSL is disabled. (Cert generation failed or not present.)"
