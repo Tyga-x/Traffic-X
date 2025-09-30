@@ -109,32 +109,75 @@ else
 fi
 deactivate
 
-# -------- SSL setup (same behavior, just clearer var names) --------
-export DOMAIN
+# -------- SSL setup (drop-in replacement) --------
+# Create a custom directory for SSL certificates
 CERT_DIR="/var/lib/Traffic-X/certs"
 sudo mkdir -p "$CERT_DIR"
 sudo chown -R "$USERNAME:$USERNAME" "$CERT_DIR"
 
-SSL_CONTEXT_ARGS=""
-if [ -f "$CERT_DIR/$DOMAIN.cer" ] && [ -f "$CERT_DIR/$DOMAIN.cer.key" ]; then
+SSL_CONTEXT=""
+if [[ -f "$CERT_DIR/$DOMAIN.cer" && -f "$CERT_DIR/$DOMAIN.cer.key" ]]; then
     echo "Valid SSL certificate already exists."
-    SSL_CONTEXT_ARGS="--certfile=$CERT_DIR/$DOMAIN.cer --keyfile=$CERT_DIR/$DOMAIN.cer.key"
+    SSL_CONTEXT="--certfile=$CERT_DIR/$DOMAIN.cer --keyfile=$CERT_DIR/$DOMAIN.cer.key"
 else
     echo "Generating SSL certificate..."
-    # Using domain in email is okay; you can swap to a real email if preferred
+    # Install acme.sh (idempotent)
     curl https://get.acme.sh | sh -s email="$USERNAME@$DOMAIN"
-    ~/" .acme.sh"/acme.sh --issue --force --standalone -d "$DOMAIN" \
+
+    # Resolve acme.sh path correctly (works even when run with sudo)
+    ACME="$HOME/.acme.sh/acme.sh"
+    if [[ "$HOME" == "/root" && -n "${SUDO_USER:-}" ]]; then
+        ACME="/home/$SUDO_USER/.acme.sh/acme.sh"
+    fi
+    # Final fallback
+    [[ -x "$ACME" ]] || ACME="$HOME/.acme.sh/acme.sh"
+
+    # Use Let's Encrypt as CA
+    "$ACME" --set-default-ca --server letsencrypt || true
+
+    # Best-effort: open 80/443 if ufw exists (won't fail the script)
+    if command -v ufw >/dev/null 2>&1; then
+        sudo ufw allow 80/tcp || true
+        sudo ufw allow 443/tcp || true
+    fi
+
+    # Best-effort: free up port 80 during issuance
+    sudo systemctl stop nginx 2>/dev/null || true
+    sudo systemctl stop apache2 2>/dev/null || true
+
+    ISSUE_OK=0
+    # Try HTTP-01 (standalone on :80)
+    if "$ACME" --issue --force --standalone -d "$DOMAIN" \
         --fullchain-file "$CERT_DIR/$DOMAIN.cer" \
-        --key-file "$CERT_DIR/$DOMAIN.cer.key" || true
-    sudo chown "$USERNAME:$USERNAME" "$CERT_DIR/$DOMAIN.cer" "$CERT_DIR/$DOMAIN.cer.key" || true
-    if [ -f "$CERT_DIR/$DOMAIN.cer" ] && [ -f "$CERT_DIR/$DOMAIN.cer.key" ]; then
+        --key-file "$CERT_DIR/$DOMAIN.cer.key"; then
+        ISSUE_OK=1
+    else
+        echo "HTTP-01 failed, retrying with IPv6 standalone..."
+        if "$ACME" --issue --force --standalone --listen-v6 -d "$DOMAIN" \
+            --fullchain-file "$CERT_DIR/$DOMAIN.cer" \
+            --key-file "$CERT_DIR/$DOMAIN.cer.key"; then
+            ISSUE_OK=1
+        else
+            echo "IPv6 standalone failed, trying ALPN on :443..."
+            if "$ACME" --issue --force --alpn -d "$DOMAIN" \
+                --fullchain-file "$CERT_DIR/$DOMAIN.cer" \
+                --key-file "$CERT_DIR/$DOMAIN.cer.key"; then
+                ISSUE_OK=1
+            fi
+        fi
+    fi
+
+    # Fix ownership & set SSL_CONTEXT when we have certs
+    if [[ $ISSUE_OK -eq 1 && -f "$CERT_DIR/$DOMAIN.cer" && -f "$CERT_DIR/$DOMAIN.cer.key" ]]; then
+        sudo chown "$USERNAME:$USERNAME" "$CERT_DIR/$DOMAIN.cer" "$CERT_DIR/$DOMAIN.cer.key" || true
         echo "SSL certificates generated successfully."
-        SSL_CONTEXT_ARGS="--certfile=$CERT_DIR/$DOMAIN.cer --keyfile=$CERT_DIR/$DOMAIN.cer.key"
+        SSL_CONTEXT="--certfile=$CERT_DIR/$DOMAIN.cer --keyfile=$CERT_DIR/$DOMAIN.cer.key"
     else
         echo "Failed to generate SSL certificates. Continuing without SSL."
-        SSL_CONTEXT_ARGS=""
+        SSL_CONTEXT=""
     fi
 fi
+# -------- end SSL setup --------
 
 # -------- DB permissions (same as before) --------
 echo "Setting permissions for the database file..."
