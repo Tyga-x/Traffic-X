@@ -1,9 +1,8 @@
 # tx_builders.py — builders for VLESS / VMess / Trojan / Shadowsocks
-# Ports the effective parts of the Node sample you shared into your DB-based project
 # Supports: tcp / ws / http / xhttp / grpc / kcp / quic
 # TLS fields: sni / alpn / fingerprint(fp) / allowInsecure
 # REALITY fields: pbk (publicKey), sid (shortId), spx (spiderX) / fingerprint
-# Also honors wsHeaders.Host, http/xhttp host, tcp-http host, and externalProxy[0].dest if present
+# Honors wsSettings.host/headers.Host, tcp http Host, http/xhttp host, externalProxy[0].dest
 import os, json, base64, io
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import quote, urlencode
@@ -52,15 +51,11 @@ def _get_security(stream: Dict[str, Any]) -> str:
     sec = (stream.get("security") or "").lower()
     if sec in ("tls","reality","xtls","none"):
         return sec
-    # xray uses "" for none:
     return "none"
 
 def _tls_settings(stream: Dict[str, Any]) -> Dict[str, Any]:
-    # Some panels put allowInsecure under tlsSettings.settings.allowInsecure
     tls = stream.get("tlsSettings") or {}
-    if isinstance(tls, dict):
-        return tls
-    return {}
+    return tls if isinstance(tls, dict) else {}
 
 def _reality_settings(stream: Dict[str, Any]) -> Dict[str, Any]:
     return stream.get("realitySettings") or {}
@@ -81,15 +76,12 @@ def _quic_settings(stream: Dict[str, Any]) -> Dict[str, Any]:
     return stream.get("quicSettings") or {}
 
 def _http_settings(stream: Dict[str, Any]) -> Dict[str, Any]:
-    # Xray “http” transport (or “xhttp” variants some panels expose)
     return stream.get("httpSettings") or {}
 
 def _xhttp_settings(stream: Dict[str, Any]) -> Dict[str, Any]:
-    # Some panels store as xhttpSettings (custom)
     return stream.get("xhttpSettings") or {}
 
 def _external_proxy_dest(stream: Dict[str, Any]) -> Optional[str]:
-    # Some panels stash an “externalProxy”: [{ dest: "host.com" }]
     ext = stream.get("externalProxy")
     if isinstance(ext, list) and ext and isinstance(ext[0], dict):
         d = ext[0].get("dest")
@@ -102,7 +94,6 @@ def _get_network_path(stream: Dict[str, Any], network: str) -> str:
         tcp = _tcp_settings(stream)
         hdr = ((tcp.get("header") or {}) if isinstance(tcp, dict) else {})
         if hdr.get("type") == "http":
-            # Some panels store request.path as array
             req = tcp.get("request") or {}
             p = _arr_first((req.get("path") or []))
             return p or "/"
@@ -111,7 +102,6 @@ def _get_network_path(stream: Dict[str, Any], network: str) -> str:
         ws = _ws_settings(stream)
         return ws.get("path") or "/"
     if network in ("http","xhttp"):
-        # support httpSettings.path (array or string) and xhttpSettings.path (string)
         hs = _http_settings(stream)
         xhs = _xhttp_settings(stream)
         if hs.get("path"):
@@ -133,7 +123,7 @@ def _get_network_path(stream: Dict[str, Any], network: str) -> str:
 def _get_network_host(stream: Dict[str, Any], network: str) -> str:
     if network == "tcp":
         tcp = _tcp_settings(stream)
-        hdr = ((tcp.get("header") or {}) if isinstance(tcp, dict) else {})
+        hdr = (tcp.get("header") or {})
         if hdr.get("type") == "http":
             req = tcp.get("request") or {}
             headers = req.get("headers") or {}
@@ -142,31 +132,24 @@ def _get_network_host(stream: Dict[str, Any], network: str) -> str:
         return ""
     if network == "ws":
         ws = _ws_settings(stream)
-        # Some panels put host under wsSettings.host, others under headers.Host
         return ws.get("host") or (ws.get("headers") or {}).get("Host") or ""
     if network in ("http","xhttp"):
         hs = _http_settings(stream)
         xhs = _xhttp_settings(stream)
-        if xhs.get("host"):
-            return xhs.get("host")
+        if xhs.get("host"): return xhs.get("host")
         h = hs.get("host")
         return _arr_first(h) if isinstance(h, list) else (h or "")
     return ""
 
 def _server_host(stream: Dict[str, Any], inbound_settings: Dict[str, Any]) -> str:
-    # Priority: externalProxy.dest → tlsSettings.serverName → wsHeaders.Host → inbound settings hints → DOMAIN fallback
     ext = _external_proxy_dest(stream)
-    if ext:
-        return ext
+    if ext: return ext
     tls = _tls_settings(stream)
-    if tls.get("serverName"):
-        return tls["serverName"]
+    if tls.get("serverName"): return tls["serverName"]
     ws_host = _get_network_host(stream, "ws")
-    if ws_host:
-        return ws_host
+    if ws_host: return ws_host
     for key in ("domain","host","address","serverName"):
-        if inbound_settings.get(key):
-            return inbound_settings[key]
+        if inbound_settings.get(key): return inbound_settings[key]
     return FALLBACK_DOMAIN
 
 def _client_id(client: Dict[str, Any]) -> str:
@@ -175,17 +158,14 @@ def _client_id(client: Dict[str, Any]) -> str:
 def _gather_tls_params(stream: Dict[str, Any]) -> Dict[str, str]:
     out: Dict[str, str] = {}
     tls = _tls_settings(stream)
-    if tls.get("serverName"):
-        out["sni"] = _norm(tls["serverName"])
+    if tls.get("serverName"): out["sni"] = _norm(tls["serverName"])
     fp = tls.get("fingerprint") or tls.get("fp")
-    if fp:
-        out["fp"] = _norm(fp)
+    if fp: out["fp"] = _norm(fp)
     alpn = tls.get("alpn")
     if isinstance(alpn, list) and alpn:
         out["alpn"] = ",".join(map(str, alpn))
     elif isinstance(alpn, str) and alpn:
         out["alpn"] = alpn
-    # allowInsecure might be under tlsSettings or tlsSettings.settings
     ain = tls.get("allowInsecure")
     if ain is None:
         s = tls.get("settings") or {}
@@ -198,14 +178,10 @@ def _gather_tls_params(stream: Dict[str, Any]) -> Dict[str, str]:
 def _gather_reality_params(stream: Dict[str, Any]) -> Dict[str, str]:
     out: Dict[str, str] = {}
     rs = _reality_settings(stream)
-    if rs.get("publicKey"):
-        out["pbk"] = _norm(rs["publicKey"])
-    if rs.get("shortId"):
-        out["sid"] = _norm(rs["shortId"])
-    if rs.get("spiderX"):
-        out["spx"] = _norm(rs["spiderX"])
-    if rs.get("fingerprint"):
-        out["fp"] = _norm(rs["fingerprint"])
+    if rs.get("publicKey"): out["pbk"] = _norm(rs["publicKey"])
+    if rs.get("shortId"): out["sid"] = _norm(rs["shortId"])
+    if rs.get("spiderX"): out["spx"] = _norm(rs["spiderX"])
+    if rs.get("fingerprint"): out["fp"] = _norm(rs["fingerprint"])
     return out
 
 
@@ -219,13 +195,11 @@ def build_vless(client: Dict[str, Any], inbound: Dict[str, Any]) -> str:
     port = str(inbound.get("port") or inbound.get("listen_port") or "")
     uid = _client_id(client)
 
-    # Special xhttp format (matches your friend's generator)
+    # xhttp special format (double-encoded path, encryption empty)
     if net == "xhttp":
         network_host = _get_network_host(stream, "xhttp") or host
         raw_path = _get_network_path(stream, "xhttp") or "/"
-        # Double-encode and lower-case path to match examples
         double_encoded = quote(quote(raw_path)).lower()
-        # encryption intentionally empty string for xhttp per example
         q = {
             "security": "none",
             "encryption": "",
@@ -242,38 +216,34 @@ def build_vless(client: Dict[str, Any], inbound: Dict[str, Any]) -> str:
         "encryption": "none",
         "path": _get_network_path(stream, net),
     }
-
     network_host = _get_network_host(stream, net)
     if network_host:
         params["host"] = network_host
 
-    # tcp headerType http
     if net == "tcp":
         tcp = _tcp_settings(stream)
         hdr = (tcp.get("header") or {})
         if hdr.get("type") == "http":
             params["headerType"] = "http"
 
-    # grpc mode
     if net == "grpc":
         gs = _grpc_settings(stream)
         params["mode"] = "multi" if gs.get("multiMode") else "gun"
         if gs.get("serviceName"):
             params["serviceName"] = gs["serviceName"]
 
-    # kcp / quic extras
     if net == "kcp":
         ks = _kcp_settings(stream)
         params["headerType"] = (ks.get("header") or {}).get("type") or "none"
         if ks.get("seed"):
             params["seed"] = ks["seed"]
+
     if net == "quic":
         qs = _quic_settings(stream)
         params["quicSecurity"] = qs.get("security") or "none"
         params["key"] = qs.get("key") or ""
         params["headerType"] = (qs.get("header") or {}).get("type") or "none"
 
-    # Security
     if sec == "tls":
         params["security"] = "tls"
         params.update(_gather_tls_params(stream))
@@ -283,26 +253,20 @@ def build_vless(client: Dict[str, Any], inbound: Dict[str, Any]) -> str:
     else:
         params["security"] = "none"
 
-    # Flow (e.g., xtls-rprx-vision)
     flow = client.get("flow") or inbound_settings.get("flow")
     if flow:
         params["flow"] = str(flow)
 
-    # Encode
     ordered_keys = [
         "type","security","encryption","path","host","headerType",
         "mode","serviceName","flow","seed","quicSecurity","key","alpn","sni","fp","allowInsecure"
     ]
-    # ensure TLS/REALITY params appear in stable order
-    # build ordered list
     tmp = params.copy()
     ordered = [(k, tmp.pop(k)) for k in ordered_keys if k in tmp]
     ordered += list(tmp.items())
     encoded = "&".join(f"{quote(str(k))}={quote(str(v))}" for k,v in ordered if v not in (None,""))
-
     tag = quote(client.get("email") or inbound.get("remark") or "node")
     return f"vless://{uid}@{host}:{port}?{encoded}#{tag}"
-
 
 def build_vmess(client: Dict[str, Any], inbound: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
     stream = _jload(inbound.get("stream_settings"))
@@ -313,7 +277,6 @@ def build_vmess(client: Dict[str, Any], inbound: Dict[str, Any]) -> Tuple[str, D
     port = str(inbound.get("port") or inbound.get("listen_port") or "")
     uid = _client_id(client)
 
-    # network fields
     path = _get_network_path(stream, net)
     vm = {
         "v": "2",
@@ -323,30 +286,25 @@ def build_vmess(client: Dict[str, Any], inbound: Dict[str, Any]) -> Tuple[str, D
         "id": uid,
         "aid": 0,
         "net": net,
-        "type": "none",  # will override below
+        "type": "none",
         "path": path,
         "tls": "tls" if sec == "tls" else ("reality" if sec == "reality" else "none"),
     }
 
-    # per network host/type
     if net == "tcp":
         tcp = _tcp_settings(stream)
         hdr = (tcp.get("header") or {})
         if hdr.get("type") == "http":
             vm["type"] = "http"
-            # tcp http Host
             req = tcp.get("request") or {}
             headers = req.get("headers") or {}
-            hlist = headers.get("Host")
-            h = _arr_first(hlist) or ""
-            if h:
-                vm["host"] = h
+            h = _arr_first(headers.get("Host")) if isinstance(headers.get("Host"), list) else headers.get("Host")
+            if h: vm["host"] = h
     elif net == "ws":
-        vm["type"] = "none"
         ws = _ws_settings(stream)
+        vm["type"] = "none"
         h = ws.get("host") or (ws.get("headers") or {}).get("Host") or ""
-        if h:
-            vm["host"] = h
+        if h: vm["host"] = h
     elif net == "grpc":
         gs = _grpc_settings(stream)
         vm["type"] = "multi" if gs.get("multiMode") else "gun"
@@ -360,14 +318,11 @@ def build_vmess(client: Dict[str, Any], inbound: Dict[str, Any]) -> Tuple[str, D
     elif net in ("http","xhttp"):
         hs = _http_settings(stream)
         xhs = _xhttp_settings(stream)
-        h = xhs.get("host") or hs.get("host")
         vm["type"] = "http"
-        if isinstance(h, list):
-            h = _arr_first(h)
-        if h:
-            vm["host"] = h
+        h = xhs.get("host") or hs.get("host")
+        if isinstance(h, list): h = _arr_first(h)
+        if h: vm["host"] = h
 
-    # TLS / REALITY extras into top-level keys commonly used by some clients
     tls_params = _gather_tls_params(stream)
     if "sni" in tls_params: vm["sni"] = tls_params["sni"]
     if "fp" in tls_params: vm["fp"] = tls_params["fp"]
@@ -381,7 +336,6 @@ def build_vmess(client: Dict[str, Any], inbound: Dict[str, Any]) -> Tuple[str, D
         if r.get("spx"): vm["spx"] = r["spx"]
         if r.get("fp"):  vm["fp"]  = r["fp"]
 
-    # Also attach everything under _ext so you can debug in clients that ignore extras
     vm["_ext"] = {}
     vm["_ext"].update(tls_params)
     if sec == "reality":
@@ -389,7 +343,6 @@ def build_vmess(client: Dict[str, Any], inbound: Dict[str, Any]) -> Tuple[str, D
 
     b64 = base64.b64encode(json.dumps(vm, separators=(",",":")).encode()).decode()
     return "vmess://" + b64, vm
-
 
 def build_trojan(client: Dict[str, Any], inbound: Dict[str, Any]) -> str:
     stream = _jload(inbound.get("stream_settings"))
@@ -424,21 +377,17 @@ def build_trojan(client: Dict[str, Any], inbound: Dict[str, Any]) -> str:
         params["security"] = "tls"
         params.update(_gather_tls_params(stream))
     elif sec == "reality":
-        # trojan+reality is unusual but let’s pass through if present
         params["security"] = "reality"
         params.update(_gather_reality_params(stream))
 
-    # order & encode
     ordered_keys = ["security","sni","alpn","fp","allowInsecure",
                     "type","path","host","mode","serviceName","headerType"]
     tmp = params.copy()
     ordered = [(k, tmp.pop(k)) for k in ordered_keys if k in tmp]
     ordered += list(tmp.items())
     encoded = "&".join(f"{quote(str(k))}={quote(str(v))}" for k,v in ordered if v not in (None,""))
-
     tag = quote(client.get("email") or inbound.get("remark") or "node")
     return f"trojan://{pwd}@{host}:{port}?{encoded}#{tag}"
-
 
 def build_ss(client: Dict[str, Any], inbound: Dict[str, Any]) -> Optional[str]:
     stream = _jload(inbound.get("stream_settings"))
@@ -452,7 +401,6 @@ def build_ss(client: Dict[str, Any], inbound: Dict[str, Any]) -> Optional[str]:
     userinfo = base64.urlsafe_b64encode(f"{method}:{pwd}".encode()).decode().rstrip("=")
     tag = quote(client.get("email") or inbound.get("remark") or "node")
     return f"ss://{userinfo}@{host}:{port}#{tag}"
-
 
 def build_best(inbound: Dict[str, Any], client: Dict[str, Any]) -> Dict[str, Any]:
     proto = (inbound.get("protocol") or "").lower()
@@ -491,7 +439,7 @@ def build_best(inbound: Dict[str, Any], client: Dict[str, Any]) -> Dict[str, Any
         out["config_filename"] = f"{client.get('email','user')}_ss.txt"
 
     else:
-        # Fallback: many panels default to vless
+        # Fallback to vless format if unknown
         link = out["vless_link"] = build_vless(client, inbound)
         out["config_text"] = link
         out["config_filename"] = f"{client.get('email','user')}_config.txt"
