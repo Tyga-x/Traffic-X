@@ -80,7 +80,6 @@ if curl -L "$DOWNLOAD_URL" -o Traffic-X.zip; then
     echo "Download successful. Extracting files..."
     unzip -o Traffic-X.zip -d /home/$USERNAME
     EXTRACTED_DIR=$(ls /home/$USERNAME | grep "Traffic-X-" | head -n 1)
-    rm -rf /home/$USERNAME/Traffic-X
     mv "/home/$USERNAME/$EXTRACTED_DIR" /home/$USERNAME/Traffic-X
     rm Traffic-X.zip
 else
@@ -105,8 +104,7 @@ source venv/bin/activate
 # Install Flask, Gunicorn, and any other required Python libraries
 echo "Installing Flask, Gunicorn, and dependencies..."
 pip install --upgrade pip
-# ADDED: qrcode for QR generation
-pip install flask gunicorn psutil requests qrcode[pil]
+pip install flask gunicorn psutil requests
 
 # Configure the Flask app to run on the specified port
 echo "Configuring Flask app..."
@@ -139,344 +137,26 @@ else
     fi
 fi
 
-# ---------------- tx_builders.py (enhanced; keeps name & API) ----------------
-cat > tx_builders.py <<'PYX'
-import os, json, base64, io
-from urllib.parse import quote, urlencode
-from typing import Any, Dict, Optional
-try:
-    import qrcode
-except Exception:
-    qrcode = None
-
-FALLBACK_DOMAIN = os.getenv("DOMAIN", "localhost")
-
-def _jload(x: Any) -> Dict[str, Any]:
-    if not x: return {}
-    if isinstance(x, dict): return x
-    try: return json.loads(x)
-    except Exception:
-        try: return json.loads(str(x).replace("'", '"'))
-        except Exception: return {}
-
-def _arr_first(x): 
-    return x[0] if isinstance(x, list) and x else x
-
-def _norm(v):
-    if isinstance(v, bool): return "1" if v else "0"
-    return "" if v is None else str(v)
-
-def _qr_data_uri(text: str) -> Optional[str]:
-    if not (qrcode and text): return None
-    qr = qrcode.QRCode(border=1); qr.add_data(text); qr.make(fit=True)
-    img = qr.make_image(); buf = io.BytesIO(); img.save(buf, format="PNG")
-    import base64 as b64
-    return "data:image/png;base64," + b64.b64encode(buf.getvalue()).decode()
-
-def _get_network(stream): return (stream.get("network") or "tcp").lower()
-def _get_security(stream):
-    sec = (stream.get("security") or "").lower()
-    return sec if sec in ("tls","reality","xtls","none") else "none"
-
-def _tls_settings(stream): return stream.get("tlsSettings") or {}
-def _reality_settings(stream): return stream.get("realitySettings") or {}
-def _ws_settings(stream): return stream.get("wsSettings") or {}
-def _grpc_settings(stream): return stream.get("grpcSettings") or {}
-def _tcp_settings(stream): return stream.get("tcpSettings") or {}
-def _kcp_settings(stream): return stream.get("kcpSettings") or {}
-def _quic_settings(stream): return stream.get("quicSettings") or {}
-def _http_settings(stream): return stream.get("httpSettings") or {}
-def _xhttp_settings(stream): return stream.get("xhttpSettings") or {}
-
-def _external_proxy_dest(stream):
-    ext = stream.get("externalProxy")
-    if isinstance(ext, list) and ext and isinstance(ext[0], dict):
-        d = ext[0].get("dest")
-        if d: return str(d)
-    return None
-
-def _get_network_path(stream, network):
-    if network == "tcp":
-        tcp = _tcp_settings(stream); hdr = (tcp.get("header") or {})
-        if hdr.get("type") == "http":
-            req = tcp.get("request") or {}; return _arr_first(req.get("path")) or "/"
-        return "/"
-    if network == "ws":
-        return (_ws_settings(stream) or {}).get("path") or "/"
-    if network in ("http","xhttp"):
-        hs = _http_settings(stream); xhs = _xhttp_settings(stream)
-        if hs.get("path"): return _arr_first(hs.get("path")) or "/"
-        if xhs.get("path"): return xhs.get("path") or "/"
-        return "/"
-    if network == "grpc":
-        return (_grpc_settings(stream) or {}).get("serviceName") or ""
-    if network == "kcp":
-        return (_kcp_settings(stream) or {}).get("seed") or ""
-    if network == "quic":
-        return (_quic_settings(stream) or {}).get("key") or ""
-    return "/"
-
-def _get_network_host(stream, network):
-    if network == "tcp":
-        tcp = _tcp_settings(stream); hdr = (tcp.get("header") or {})
-        if hdr.get("type") == "http":
-            req = tcp.get("request") or {}; headers = req.get("headers") or {}
-            return _arr_first(headers.get("Host")) or ""
-        return ""
-    if network == "ws":
-        ws = _ws_settings(stream); return ws.get("host") or (ws.get("headers") or {}).get("Host") or ""
-    if network in ("http","xhttp"):
-        hs = _http_settings(stream); xhs = _xhttp_settings(stream)
-        if xhs.get("host"): return xhs.get("host")
-        h = hs.get("host"); return _arr_first(h) if isinstance(h, list) else (h or "")
-    return ""
-
-def _server_host(stream, inbound_settings):
-    return (_external_proxy_dest(stream)
-            or _tls_settings(stream).get("serverName")
-            or _get_network_host(stream,"ws")
-            or inbound_settings.get("domain")
-            or inbound_settings.get("host")
-            or inbound_settings.get("address")
-            or FALLBACK_DOMAIN)
-
-def _client_id(client):
-    return client.get("id") or client.get("uuid") or client.get("password") or ""
-
-def _gather_tls_params(stream):
-    out = {}
-    tls = _tls_settings(stream)
-    if tls.get("serverName"): out["sni"] = _norm(tls["serverName"])
-    fp = tls.get("fingerprint") or tls.get("fp")
-    if fp: out["fp"] = _norm(fp)
-    alpn = tls.get("alpn")
-    if isinstance(alpn, list) and alpn: out["alpn"] = ",".join(map(str, alpn))
-    elif isinstance(alpn, str) and alpn: out["alpn"] = alpn
-    ain = tls.get("allowInsecure") or (tls.get("settings") or {}).get("allowInsecure")
-    if ain is not None: out["allowInsecure"] = _norm(ain)
-    return out
-
-def _gather_reality_params(stream):
-    out = {}
-    rs = _reality_settings(stream)
-    if rs.get("publicKey"): out["pbk"] = _norm(rs["publicKey"])
-    if rs.get("shortId"): out["sid"] = _norm(rs["shortId"])
-    if rs.get("spiderX"): out["spx"] = _norm(rs["spiderX"])
-    if rs.get("fingerprint"): out["fp"] = _norm(rs["fingerprint"])
-    return out
-
-def build_vless(client, inbound):
-    stream = _jload(inbound.get("stream_settings") or inbound.get("streamSettings"))
-    inbound_settings = _jload(inbound.get("settings"))
-    net = _get_network(stream); sec = _get_security(stream)
-    host = _server_host(stream, inbound_settings)
-    port = str(inbound.get("port") or inbound.get("listen") or inbound.get("listen_port") or "")
-    uid = _client_id(client)
-
-    # xhttp: special encoding
-    if net == "xhttp":
-        network_host = _get_network_host(stream, "xhttp") or host
-        raw_path = _get_network_path(stream, "xhttp") or "/"
-        from urllib.parse import quote
-        double_encoded = quote(quote(raw_path)).lower()
-        q = {
-            "security":"none","encryption":"", "headerType":"",
-            "type":"xhttp", "host":network_host, "path":double_encoded
-        }
-        tag = quote(client.get("email") or inbound.get("remark") or "node")
-        return f"vless://{uid}@{host}:{port}/?{urlencode({k:v for k,v in q.items() if v is not None})}#{tag}"
-
-    params = {"type": net, "encryption": "none", "path": _get_network_path(stream, net)}
-    network_host = _get_network_host(stream, net)
-    if network_host: params["host"] = network_host
-
-    if net == "tcp":
-        tcp = _tcp_settings(stream); hdr = (tcp.get("header") or {})
-        if hdr.get("type") == "http": params["headerType"] = "http"
-    if net == "grpc":
-        gs = _grpc_settings(stream)
-        params["mode"] = "multi" if gs.get("multiMode") else "gun"
-        if gs.get("serviceName"): params["serviceName"] = gs["serviceName"]
-    if net == "kcp":
-        ks = _kcp_settings(stream)
-        params["headerType"] = (ks.get("header") or {}).get("type") or "none"
-        if ks.get("seed"): params["seed"] = ks["seed"]
-    if net == "quic":
-        qs = _quic_settings(stream)
-        params["quicSecurity"] = qs.get("security") or "none"
-        params["key"] = qs.get("key") or ""
-        params["headerType"] = (qs.get("header") or {}).get("type") or "none"
-
-    if sec == "tls":
-        params["security"] = "tls"; params.update(_gather_tls_params(stream))
-    elif sec == "reality":
-        params["security"] = "reality"; params.update(_gather_reality_params(stream))
-    else:
-        params["security"] = "none"
-
-    flow = client.get("flow") or inbound_settings.get("flow")
-    if flow: params["flow"] = str(flow)
-
-    ordered = ["type","security","encryption","path","host","headerType","mode","serviceName","flow","seed","quicSecurity","key","alpn","sni","fp","allowInsecure"]
-    tmp = params.copy()
-    kv = [(k, tmp.pop(k)) for k in ordered if k in tmp] + list(tmp.items())
-    enc = "&".join(f"{quote(str(k))}={quote(str(v))}" for k,v in kv if v not in (None,""))
-    tag = quote(client.get("email") or inbound.get("remark") or "node")
-    return f"vless://{uid}@{host}:{port}?{enc}#{tag}"
-
-def build_vmess(client, inbound):
-    stream = _jload(inbound.get("stream_settings") or inbound.get("streamSettings"))
-    inbound_settings = _jload(inbound.get("settings"))
-    net = _get_network(stream); sec = _get_security(stream)
-    host = _server_host(stream, inbound_settings)
-    port = str(inbound.get("port") or inbound.get("listen") or inbound.get("listen_port") or "")
-    uid = _client_id(client)
-    path = _get_network_path(stream, net)
-
-    vm = {
-        "v": "2",
-        "ps": client.get("email") or inbound.get("remark") or "node",
-        "add": host,
-        "port": port,
-        "id": uid,
-        "aid": 0,
-        "net": net,
-        "type": "none",
-        "path": path,
-        "tls": "tls" if sec=="tls" else ("reality" if sec=="reality" else "none"),
-    }
-
-    if net == "tcp":
-        tcp = _tcp_settings(stream); hdr = (tcp.get("header") or {})
-        if hdr.get("type") == "http":
-            vm["type"] = "http"
-            req = tcp.get("request") or {}; headers = req.get("headers") or {}
-            h = _arr_first(headers.get("Host")) if isinstance(headers.get("Host"), list) else headers.get("Host")
-            if h: vm["host"] = h
-    elif net == "ws":
-        ws = _ws_settings(stream); h = ws.get("host") or (ws.get("headers") or {}).get("Host") or ""
-        if h: vm["host"] = h
-    elif net == "grpc":
-        gs = _grpc_settings(stream); vm["type"] = "multi" if gs.get("multiMode") else "gun"
-        if gs.get("serviceName"): vm["servicename"] = gs["serviceName"]
-    elif net == "kcp":
-        ks = _kcp_settings(stream); vm["type"] = (ks.get("header") or {}).get("type") or "none"
-    elif net == "quic":
-        qs = _quic_settings(stream); vm["type"] = (qs.get("header") or {}).get("type") or "none"; vm["host"] = qs.get("security") or "none"
-    elif net in ("http","xhttp"):
-        hs = _http_settings(stream); xhs = _xhttp_settings(stream); vm["type"] = "http"
-        h = xhs.get("host") or hs.get("host"); h = _arr_first(h) if isinstance(h,list) else h
-        if h: vm["host"] = h
-
-    tls_params = _gather_tls_params(stream)
-    if "sni" in tls_params: vm["sni"] = tls_params["sni"]
-    if "fp" in tls_params: vm["fp"] = tls_params["fp"]
-    if "alpn" in tls_params: vm["alpn"] = tls_params["alpn"]
-    if "allowInsecure" in tls_params: vm["allowInsecure"] = tls_params["allowInsecure"]
-
-    if sec == "reality":
-        r = _gather_reality_params(stream)
-        if r.get("pbk"): vm["pbk"] = r["pbk"]
-        if r.get("sid"): vm["sid"] = r["sid"]
-        if r.get("spx"): vm["spx"] = r["spx"]
-        if r.get("fp"):  vm["fp"]  = r["fp"]
-
-    b64 = base64.b64encode(json.dumps(vm, separators=(",",":")).encode()).decode()
-    return "vmess://" + b64, vm
-
-def build_trojan(client, inbound):
-    stream = _jload(inbound.get("stream_settings") or inbound.get("streamSettings"))
-    inbound_settings = _jload(inbound.get("settings"))
-    net = _get_network(stream); sec = _get_security(stream)
-    host = _server_host(stream, inbound_settings)
-    port = str(inbound.get("port") or inbound.get("listen") or inbound.get("listen_port") or "")
-    pwd = (client.get("password") or client.get("id") or "")
-
-    params = {"type": net, "path": _get_network_path(stream, net)}
-    h = _get_network_host(stream, net)
-    if h: params["host"] = h
-
-    if net == "grpc":
-        gs = _grpc_settings(stream)
-        params["mode"] = "multi" if gs.get("multiMode") else "gun"
-        if gs.get("serviceName"): params["serviceName"] = gs["serviceName"]
-    if net == "tcp":
-        tcp = _tcp_settings(stream); hdr = (tcp.get("header") or {})
-        if hdr.get("type") == "http": params["headerType"] = "http"
-
-    if sec == "tls":
-        params["security"] = "tls"; params.update(_gather_tls_params(stream))
-    elif sec == "reality":
-        params["security"] = "reality"; params.update(_gather_reality_params(stream))
-
-    ordered = ["security","sni","alpn","fp","allowInsecure","type","path","host","mode","serviceName","headerType"]
-    tmp = params.copy()
-    kv = [(k, tmp.pop(k)) for k in ordered if k in tmp] + list(tmp.items())
-    enc = "&".join(f"{quote(str(k))}={quote(str(v))}" for k,v in kv if v not in (None,""))
-    tag = quote(client.get("email") or inbound.get("remark") or "node")
-    return f"trojan://{pwd}@{host}:{port}?{enc}#{tag}"
-
-def build_ss(client, inbound):
-    inbound_settings = _jload(inbound.get("settings"))
-    host = _server_host(_jload(inbound.get("stream_settings") or inbound.get("streamSettings")), inbound_settings)
-    port = str(inbound.get("port") or inbound.get("listen") or inbound.get("listen_port") or "")
-    method = client.get("method") or inbound_settings.get("method")
-    pwd = client.get("password") or inbound_settings.get("password")
-    if not (method and pwd): return None
-    userinfo = base64.urlsafe_b64encode(f"{method}:{pwd}".encode()).decode().rstrip("=")
-    tag = quote(client.get("email") or inbound.get("remark") or "node")
-    return f"ss://{userinfo}@{host}:{port}#{tag}"
-
-def build_best(inbound, client):
-    proto = (inbound.get("protocol") or "").lower()
-    out = {
-        "protocol": proto,
-        "vless_link": None,
-        "vmess_link": None,
-        "vmess_json": None,
-        "trojan_link": None,
-        "ss_link": None,
-        "config_text": "",
-        "config_filename": "",
-        "qr_datauri": None
-    }
-    if proto == "vless":
-        link = out["vless_link"] = build_vless(client, inbound)
-        out["config_text"] = link; out["config_filename"] = f"{client.get('email','user')}_vless.txt"
-    elif proto == "vmess":
-        link, vmj = build_vmess(client, inbound)
-        out["vmess_link"] = link; out["vmess_json"] = vmj
-        out["config_text"] = link; out["config_filename"] = f"{client.get('email','user')}_vmess.txt"
-    elif proto == "trojan":
-        link = out["trojan_link"] = build_trojan(client, inbound)
-        out["config_text"] = link; out["config_filename"] = f"{client.get('email','user')}_trojan.txt"
-    elif proto in ("shadowsocks","ss"):
-        link = out["ss_link"] = build_ss(client, inbound)
-        out["config_text"] = link or ""; out["config_filename"] = f"{client.get('email','user')}_ss.txt"
-    else:
-        # default to vless-style if unknown
-        link = out["vless_link"] = build_vless(client, inbound)
-        out["config_text"] = link; out["config_filename"] = f"{client.get('email','user')}_config.txt"; out["protocol"] = "vless"
-    if out["config_text"] and qrcode:
-        out["qr_datauri"] = _qr_data_uri(out["config_text"])
-    return out
-
-# Back-compat name used in very old code
-def build_links(client, inbound):
-    return build_best(inbound, client)
-PYX
-
-# ---------------- app.py (keeps your old endpoints + adds /user_config) ----------------
-cat > app.py <<'PYAPP'
-from flask import Flask, request, render_template, jsonify, send_file
-import sqlite3, json, psutil, requests, os, io
+# app.py with new features (server metrics, network traffic, provider detection)
+cat > app.py <<EOL
+from flask import Flask, request, render_template, jsonify
+import sqlite3
+import json
+import psutil
+import requests
 from datetime import datetime
-from tx_builders import build_best, build_links
+import os
+
+# NEW: imports for live throughput and optional per-connection snapshot
+import time
+import shutil
+import subprocess
 
 app = Flask(__name__)
 db_path = os.getenv("DB_PATH", "/etc/x-ui/x-ui.db")
 
 def convert_bytes(byte_size):
+    """Convert bytes to a human-readable format (MB, GB, TB)."""
     if byte_size is None:
         return "0 Bytes"
     if byte_size < 1024:
@@ -548,90 +228,6 @@ def usage():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# NEW: return a user’s ready-to-scan config & QR
-@app.route('/user_config')
-def user_config():
-    username = request.args.get('username','').strip()
-    if not username:
-        return jsonify({"error":"username required"}), 400
-    try:
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        cur.execute("""
-          SELECT i.id, i.protocol, i.port, i.remark, i.stream_settings, i.settings
-            FROM inbounds i
-           WHERE EXISTS(
-             SELECT 1 FROM json_each(json_extract(i.settings,'$.clients')) c
-              WHERE json_extract(c.value,'$.email') = ?
-           )
-           LIMIT 1
-        """, (username,))
-        ib = cur.fetchone()
-        if not ib:
-            conn.close()
-            return jsonify({"error":"user not found"}), 404
-
-        inbound = {
-            "id": ib[0], "protocol": ib[1], "port": ib[2], "remark": ib[3],
-            "stream_settings": ib[4], "settings": ib[5]
-        }
-        # pull the matching client
-        cur.execute("""
-          SELECT json_extract(c.value,'$.email'),
-                 json_extract(c.value,'$.id'),
-                 json_extract(c.value,'$.uuid'),
-                 json_extract(c.value,'$.password'),
-                 json_extract(c.value,'$.method'),
-                 json_extract(c.value,'$.flow')
-            FROM json_each(json_extract(?,'$.clients')) c
-           WHERE json_extract(c.value,'$.email') = ?
-           LIMIT 1
-        """, (inbound["settings"], username))
-        c = cur.fetchone()
-        conn.close()
-        if not c:
-            return jsonify({"error":"client not found"}), 404
-        client = {
-            "email": c[0],
-            "id": c[1],
-            "uuid": c[2],
-            "password": c[3],
-            "method": c[4],
-            "flow": c[5],
-        }
-
-        # Prefer build_best, fall back to build_links (back-compat)
-        try:
-            built = build_best(inbound, client)
-        except Exception:
-            built = build_links(client, inbound)
-
-        # ensure filename starts with username
-        fn = built.get("config_filename") or "config.txt"
-        if username not in fn:
-            proto = (built.get("protocol") or "config").lower()
-            built["config_filename"] = f"{username}_{proto}.txt"
-
-        return jsonify({"username": username, **built})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# NEW: download the config as a .txt
-@app.route('/download_config')
-def download_config():
-    username = request.args.get('username','').strip()
-    if not username: 
-        return jsonify({"error":"username required"}), 400
-    with app.test_client() as c:
-        r = c.get(f"/user_config?username={username}")
-    if r.status_code != 200:
-        return r
-    j = r.get_json() or {}
-    text = j.get("config_text","")
-    name = j.get("config_filename","config.txt")
-    buf = io.BytesIO(text.encode()); buf.seek(0)
-    return send_file(buf, as_attachment=True, download_name=name, mimetype="text/plain")
-
 @app.route('/update-status', methods=['POST'])
 def update_status():
     try:
@@ -644,11 +240,15 @@ def update_status():
 
 @app.route('/server-status')
 def server_status():
+    """Returns CPU, RAM, Disk usage, and cumulative Network counters (since boot)."""
     try:
+        net_io = psutil.net_io_counters()
         status = {
             "cpu": psutil.cpu_percent(interval=1),
             "ram": psutil.virtual_memory().percent,
-            "disk": psutil.disk_usage('/').percent
+            "disk": psutil.disk_usage('/').percent,
+            "net_sent": convert_bytes(net_io.bytes_sent),
+            "net_recv": convert_bytes(net_io.bytes_recv)
         }
         return jsonify(status)
     except Exception as e:
@@ -667,13 +267,123 @@ def server_location():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/cloud-provider')
+def cloud_provider():
+    """Detect cloud provider from sys_vendor if available."""
+    try:
+        provider = "Unknown"
+        if os.path.exists("/sys/class/dmi/id/sys_vendor"):
+            with open("/sys/class/dmi/id/sys_vendor", "r") as f:
+                vendor = f.read().strip().lower()
+                if "amazon" in vendor:
+                    provider = "AWS"
+                elif "digital" in vendor:
+                    provider = "DigitalOcean"
+                elif "linode" in vendor:
+                    provider = "Linode"
+                elif "google" in vendor:
+                    provider = "Google Cloud"
+        return jsonify({"provider": provider})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ========= NEW: Live network throughput (Mbps) =========
+def _bytes_to_mbps(delta_bytes, seconds):
+    if seconds <= 0:
+        return 0.0
+    return (delta_bytes * 8) / (seconds * 1_000_000)  # Mbps
+
+@app.route('/net-live')
+def net_live():
+    """
+    Returns live network rates (Mbps) sampled over ~1s:
+    {
+      "total": {"rx_mbps": float, "tx_mbps": float},
+      "per_nic": {"eth0": {"rx_mbps":..., "tx_mbps":...}, ...}
+    }
+    """
+    try:
+        t0 = time.time()
+        c0_total = psutil.net_io_counters()
+        c0_per = psutil.net_io_counters(pernic=True)
+        time.sleep(1.0)
+        t1 = time.time()
+        c1_total = psutil.net_io_counters()
+        c1_per = psutil.net_io_counters(pernic=True)
+        dt = t1 - t0
+
+        total = {
+            "rx_mbps": round(_bytes_to_mbps(c1_total.bytes_recv - c0_total.bytes_recv, dt), 3),
+            "tx_mbps": round(_bytes_to_mbps(c1_total.bytes_sent - c0_total.bytes_sent, dt), 3),
+        }
+
+        per_nic = {}
+        for nic, s0 in c0_per.items():
+            s1 = c1_per.get(nic)
+            if not s1:
+                continue
+            per_nic[nic] = {
+                "rx_mbps": round(_bytes_to_mbps(s1.bytes_recv - s0.bytes_recv, dt), 3),
+                "tx_mbps": round(_bytes_to_mbps(s1.bytes_sent - s0.bytes_sent, dt), 3),
+            }
+
+        return jsonify({"total": total, "per_nic": per_nic})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ========= NEW (optional): per-connection/process snapshot via nethogs =========
+@app.route('/net-connections')
+def net_connections():
+    """
+    Uses nethogs (-t -c 1 -d 1) to produce a 1-second snapshot.
+    Returns: { available, rows:[{iface,pid,user,process,tx_mbps,rx_mbps}, ...] }
+    Requires: sudo apt install nethogs, plus sudoers permission for the service user.
+    """
+    try:
+        if not shutil.which("nethogs"):
+            return jsonify({"available": False, "message": "nethogs not installed"}), 200
+
+        out = subprocess.check_output(
+            ["sudo", "nethogs", "-t", "-c", "1", "-d", "1"],
+            stderr=subprocess.STDOUT, text=True
+        )
+
+        rows = []
+        for line in out.splitlines():
+            parts = line.split()
+            if len(parts) >= 6 and parts[0] != "Refreshing:":
+                iface, pid, user = parts[0], parts[1], parts[2]
+                sent_kbs, recv_kbs = parts[-2], parts[-1]
+                process = " ".join(parts[3:-2])
+
+                def kb_to_mbps(s):
+                    try:
+                        return round((float(s) * 8) / 1000, 3)
+                    except:
+                        return 0.0
+
+                rows.append({
+                    "iface": iface,
+                    "pid": pid,
+                    "user": user,
+                    "process": process,
+                    "tx_mbps": kb_to_mbps(sent_kbs),
+                    "rx_mbps": kb_to_mbps(recv_kbs),
+                })
+
+        return jsonify({"available": True, "rows": rows})
+    except subprocess.CalledProcessError as e:
+        return jsonify({"available": False, "message": e.output}), 200
+    except Exception as e:
+        return jsonify({"available": False, "message": str(e)}), 200
+
 @app.route('/ping')
 def ping():
     return jsonify({"status": "success", "message": "Pong!"})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.getenv("PORT","5000")), debug=False)
-PYAPP
+    app.run(host='0.0.0.0', port=$PORT, debug=False)
+EOL
 
 # Set permissions for the database file
 echo "Setting permissions for the database file..."
@@ -698,8 +408,6 @@ User=$USERNAME
 WorkingDirectory=/home/$USERNAME/Traffic-X
 ExecStart=/bin/bash -c 'source /home/$USERNAME/Traffic-X/venv/bin/activate && exec gunicorn -w 4 -b 0.0.0.0:$PORT $SSL_CONTEXT app:app'
 Environment="DB_PATH=/etc/x-ui/x-ui.db"
-Environment="DOMAIN=$SERVER_IP"
-Environment="PORT=$PORT"
 Restart=always
 RestartSec=5
 StandardOutput=append:/var/log/traffic-x.log
