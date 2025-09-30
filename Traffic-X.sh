@@ -34,7 +34,6 @@ done
 # Prefer SUDO_USER when run via sudo; fall back to whoami; final fallback: prompt.
 USERNAME="${SUDO_USER:-$(whoami)}"
 if [[ -z "$USERNAME" || "$USERNAME" == "root" ]]; then
-  # Optional: try to guess a non-root home directory if available
   POSSIBLE_USER="$(logname 2>/dev/null || true)"
   if [[ -n "${POSSIBLE_USER:-}" && "${POSSIBLE_USER}" != "root" ]]; then
     USERNAME="$POSSIBLE_USER"
@@ -109,31 +108,77 @@ else
 fi
 deactivate
 
-# -------- SSL setup (drop-in replacement) --------
-# Create a custom directory for SSL certificates
-mkdir -p /var/lib/Traffic-X/certs
-sudo chown -R $USERNAME:$USERNAME /var/lib/Traffic-X/certs
+# -------- SSL setup (robust + fixed acme.sh path) --------
+SSL_CONTEXT=""   # initialize so it's always defined (avoids 'unbound variable')
+CERT_DIR="/var/lib/Traffic-X/certs"
+sudo mkdir -p "$CERT_DIR"
+sudo chown -R "$USERNAME:$USERNAME" "$CERT_DIR"
 
-# Check if valid certificate already exists
-if [ -f "/var/lib/Traffic-X/certs/$DOMAIN.cer" ] && [ -f "/var/lib/Traffic-X/certs/$DOMAIN.cer.key" ]; then
+if [[ -f "$CERT_DIR/$DOMAIN.cer" && -f "$CERT_DIR/$DOMAIN.cer.key" ]]; then
     echo "Valid SSL certificate already exists."
-    SSL_CONTEXT="--certfile=/var/lib/Traffic-X/certs/$DOMAIN.cer --keyfile=/var/lib/Traffic-X/certs/$DOMAIN.cer.key"
+    SSL_CONTEXT="--certfile=$CERT_DIR/$DOMAIN.cer --keyfile=$CERT_DIR/$DOMAIN.cer.key"
 else
     echo "Generating SSL certificate..."
-    curl https://get.acme.sh | sh -s email=$USERNAME@$SERVER_IP
-    ~/.acme.sh/acme.sh --issue --force --standalone -d "$DOMAIN" \
-        --fullchain-file "/var/lib/Traffic-X/certs/$DOMAIN.cer" \
-        --key-file "/var/lib/Traffic-X/certs/$DOMAIN.cer.key"
-    # Fix ownership of the generated certificates
-    sudo chown $USERNAME:$USERNAME /var/lib/Traffic-X/certs/$DOMAIN.cer
-    sudo chown $USERNAME:$USERNAME /var/lib/Traffic-X/certs/$DOMAIN.cer.key
-    # Verify certificate generation
-    if [ ! -f "/var/lib/Traffic-X/certs/$DOMAIN.cer" ] || [ ! -f "/var/lib/Traffic-X/certs/$DOMAIN.cer.key" ]; then
-        echo "Failed to generate SSL certificates. Disabling SSL."
-        SSL_CONTEXT=""
+    # Install acme.sh (idempotent)
+    curl https://get.acme.sh | sh -s email="$USERNAME@$DOMAIN" || true
+
+    # Resolve acme.sh path correctly (works even when run with sudo)
+    ACME="$HOME/.acme.sh/acme.sh"
+    if [[ "$HOME" == "/root" && -n "${SUDO_USER:-}" ]]; then
+        ACME="/home/$SUDO_USER/.acme.sh/acme.sh"
+    fi
+    # Fallback to HOME_DIR if needed
+    if [[ ! -x "$ACME" && -n "${HOME_DIR:-}" ]]; then
+        ACME="$HOME_DIR/.acme.sh/acme.sh"
+    fi
+    # Final fallback
+    if [[ ! -x "$ACME" ]]; then
+        ACME="$HOME/.acme.sh/acme.sh"
+    fi
+
+    # Use Let's Encrypt
+    "$ACME" --set-default-ca --server letsencrypt || true
+
+    # Best-effort: open 80/443 (won't fail script if ufw absent)
+    if command -v ufw >/dev/null 2>&1; then
+        sudo ufw allow 80/tcp || true
+        sudo ufw allow 443/tcp || true
+    fi
+
+    # Best-effort: free up port 80 during issuance
+    sudo systemctl stop nginx 2>/dev/null || true
+    sudo systemctl stop apache2 2>/dev/null || true
+
+    ISSUE_OK=0
+    # Try HTTP-01 (standalone on :80)
+    if "$ACME" --issue --force --standalone -d "$DOMAIN" \
+        --fullchain-file "$CERT_DIR/$DOMAIN.cer" \
+        --key-file "$CERT_DIR/$DOMAIN.cer.key"; then
+        ISSUE_OK=1
     else
+        echo "HTTP-01 failed, retrying with IPv6 standalone..."
+        if "$ACME" --issue --force --standalone --listen-v6 -d "$DOMAIN" \
+            --fullchain-file "$CERT_DIR/$DOMAIN.cer" \
+            --key-file "$CERT_DIR/$DOMAIN.cer.key"; then
+            ISSUE_OK=1
+        else
+            echo "IPv6 standalone failed, trying ALPN on :443..."
+            if "$ACME" --issue --force --alpn -d "$DOMAIN" \
+                --fullchain-file "$CERT_DIR/$DOMAIN.cer" \
+                --key-file "$CERT_DIR/$DOMAIN.cer.key"; then
+                ISSUE_OK=1
+            fi
+        fi
+    fi
+
+    # Fix ownership & set SSL_CONTEXT when we have certs
+    if [[ $ISSUE_OK -eq 1 && -f "$CERT_DIR/$DOMAIN.cer" && -f "$CERT_DIR/$DOMAIN.cer.key" ]]; then
+        sudo chown "$USERNAME:$USERNAME" "$CERT_DIR/$DOMAIN.cer" "$CERT_DIR/$DOMAIN.cer.key" || true
         echo "SSL certificates generated successfully."
-        SSL_CONTEXT="--certfile=/var/lib/Traffic-X/certs/$DOMAIN.cer --keyfile=/var/lib/Traffic-X/certs/$DOMAIN.cer.key"
+        SSL_CONTEXT="--certfile=$CERT_DIR/$DOMAIN.cer --keyfile=$CERT_DIR/$DOMAIN.cer.key"
+    else
+        echo "Failed to generate SSL certificates. Continuing without SSL."
+        SSL_CONTEXT=""
     fi
 fi
 # -------- end SSL setup --------
@@ -166,7 +211,7 @@ After=network.target
 User=$USERNAME
 WorkingDirectory=$HOME_DIR/Traffic-X
 Environment="DB_PATH=/etc/x-ui/x-ui.db"
-ExecStart=/bin/bash -lc 'source $HOME_DIR/Traffic-X/venv/bin/activate && exec gunicorn -w 4 -b 0.0.0.0:$PORT $SSL_CONTEXT_ARGS app:app'
+ExecStart=/bin/bash -lc 'source $HOME_DIR/Traffic-X/venv/bin/activate && exec gunicorn -w 4 -b 0.0.0.0:$PORT $SSL_CONTEXT app:app'
 Restart=always
 RestartSec=5
 StandardOutput=append:/var/log/traffic-x.log
@@ -184,6 +229,6 @@ sudo systemctl start traffic-x
 
 # -------- Final messages --------
 PROTO="http"
-[ -n "$SSL_CONTEXT_ARGS" ] && PROTO="https"
+[ -n "$SSL_CONTEXT" ] && PROTO="https"
 echo "Installation complete! Your server is running at $PROTO://$DOMAIN:$PORT"
-[ -z "$SSL_CONTEXT_ARGS" ] && echo "SSL is disabled. (Cert generation failed or not present.)"
+[ -z "$SSL_CONTEXT" ] && echo "SSL is disabled. (Cert generation failed or not present.)"
