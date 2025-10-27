@@ -1,128 +1,217 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TRAFFIC-X • Usage Details</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TRAFFIC-X • Usage Details</title>
 
-  <!-- Icons + Charts -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<!-- Icons + Charts -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
-  <style>
-    /* ===== Background & Base ===== */
-    @keyframes gradientBackground {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
+<style>
+/* ===== BASE ===== */
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  font-family:'Poppins',sans-serif;
+  background:#03040a;
+  color:#e0e0e0;
+  overflow-x:hidden;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  position:relative;
+}
 
-    :root{
-      --primary:#05B031;
-      --glass: rgba(255,255,255,.1);
-      --glass-2: rgba(255,255,255,.18);
-      --text: #fff;
-      --shadow: 0 6px 20px rgba(0,0,0,.3);
-    }
+/* ===== AURORA BACKGROUND ===== */
+body::before{
+  content:"";
+  position:fixed;inset:0;
+  background:
+    radial-gradient(circle at 25% 25%,rgba(0,255,200,0.12),transparent 40%),
+    radial-gradient(circle at 75% 75%,rgba(255,0,255,0.12),transparent 40%),
+    linear-gradient(120deg,rgba(0,255,255,0.1),rgba(0,0,0,0.1));
+  background-size:200% 200%;
+  animation:aurora 15s ease-in-out infinite;
+  z-index:0;
+}
+@keyframes aurora{
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
 
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
-      color: var(--text);
-      background: linear-gradient(135deg, #1e1f26, #641B9F, #263D9B, #009688);
-      background-size: 400% 400%;
-      animation: gradientBackground 15s ease infinite;
-      min-height: 100vh;
-    }
+/* ===== CONTAINER ===== */
+.container{
+  position:relative;
+  z-index:2;
+  max-width:1300px;
+  margin:auto;
+  padding:60px 20px;
+  flex:1;
+}
 
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 32px 20px 48px;
-    }
+/* ===== TOP BAR ===== */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:40px;
+}
+.brand{
+  display:flex;align-items:center;gap:12px;font-size:26px;font-weight:800;letter-spacing:1px;
+  color:#fff;text-shadow:0 0 15px rgba(0,255,255,0.5);
+}
+.brand i{font-size:26px;color:#00ffd5;}
+.actions{display:flex;gap:12px;}
+.btn{
+  background:linear-gradient(90deg,#00f7ff,#6d00ff);
+  color:#fff;border:none;border-radius:10px;
+  padding:10px 16px;cursor:pointer;font-weight:600;
+  transition:all 0.3s ease;box-shadow:0 0 15px rgba(0,255,255,0.15);
+}
+.btn.outline{
+  background:transparent;
+  border:1px solid rgba(255,255,255,0.3);
+  color:#fff;
+}
+.btn:hover{
+  transform:scale(1.05);
+  box-shadow:0 0 25px rgba(0,255,255,0.4);
+}
 
-    .topbar{
-      display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:24px;
-    }
-    .brand{
-      display:flex;align-items:center;gap:10px;font-size:24px;font-weight:800;letter-spacing:1px;
-    }
-    .brand i{font-size:24px}
-    .actions{display:flex;gap:10px}
-    .btn{
-      background: var(--primary); color:#fff; border:none; border-radius:10px;
-      padding:10px 14px; cursor:pointer; box-shadow: var(--shadow); font-weight:600;
-    }
-    .btn.outline{ background: transparent; border:1px solid #ffffff44 }
-    .btn:hover{ filter:brightness(.95) }
+/* ===== GRID ===== */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:40px;
+}
+@media(max-width:1024px){.grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:700px){.grid{grid-template-columns:1fr;}}
 
-    .grid{
-      display:grid; gap:20px;
-      grid-template-columns: repeat(3, 1fr);
-    }
-    @media (max-width: 992px){ .grid{ grid-template-columns:repeat(2,1fr);} }
-    @media (max-width: 600px){ .grid{ grid-template-columns:1fr;} }
+/* ===== CARD ===== */
+.card{
+  position:relative;
+  padding:28px;
+  border-radius:22px;
+  overflow:hidden;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.1);
+  backdrop-filter:blur(20px);
+  transition:transform 0.5s ease, box-shadow 0.5s ease;
+  box-shadow:0 0 30px rgba(0,0,0,0.5);
+}
+.card:hover{
+  transform:translateY(-6px) scale(1.02);
+  box-shadow:0 0 40px rgba(0,255,255,0.2);
+}
 
-    .card{
-      background: var(--glass);
-      backdrop-filter: blur(12px);
-      box-shadow: var(--shadow);
-      border-radius: 16px;
-      padding: 22px;
-      position: relative;
-      transition: transform .15s ease;
-    }
-    .card:hover{ transform: translateY(-3px); }
+/* Floating gradient edge */
+.card::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  border-radius:24px;
+  background:linear-gradient(135deg,rgba(0,255,255,0.5),rgba(255,0,255,0.5),rgba(0,255,100,0.5));
+  background-size:400%;
+  animation:edgeFlow 10s linear infinite;
+  opacity:0.15;
+  z-index:1;
+}
+@keyframes edgeFlow{
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
 
-    .card h3{
-      margin:0 0 14px; font-size:18px; display:flex; align-items:center; gap:10px; font-weight:700;
-    }
-    .card h3 i{ font-size:20px }
+/* Shine sweep */
+.card::after{
+  content:"";
+  position:absolute;
+  top:0;left:-75%;
+  width:50%;height:100%;
+  background:linear-gradient(120deg,transparent,rgba(255,255,255,0.4),transparent);
+  transform:skewX(-25deg);
+  z-index:2;opacity:0;
+}
+.card:hover::after{
+  animation:shineSweep 2s ease;
+  opacity:0.4;
+}
+@keyframes shineSweep{
+  0%{left:-75%;}
+  100%{left:125%;}
+}
 
-    .metric{
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      background: var(--glass-2); border-radius:12px; padding:10px 12px; margin:8px 0;
-    }
-    .metric .label{ display:flex; align-items:center; gap:8px; font-weight:600 }
-    .badge{
-      background:#ffffff22; border:1px solid #ffffff33; padding:4px 8px; border-radius:999px; font-size:12px;
-    }
+.card>*{position:relative;z-index:3;}
 
-    .progress-container{
-      background: rgba(255,255,255,.25);
-      border-radius: 6px; height:10px; overflow:hidden; margin-top:8px;
-    }
-    .progress-bar{
-      height: 100%; width: 0%; background: var(--primary);
-      transition: width .8s ease, background-color .4s ease;
-    }
+/* ===== HEADINGS ===== */
+.card h3{
+  display:flex;align-items:center;gap:10px;
+  font-size:20px;font-weight:600;
+  background:linear-gradient(90deg,#00f7ff,#ff00cc);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  margin-bottom:18px;
+}
+.card h3 i{color:#00ffcc;}
 
-    /* Toggle (user config enable/disable) */
-    .toggle{
-      width:44px; height:24px; background:#999; border-radius:999px; position:relative; cursor:pointer; flex-shrink:0;
-    }
-    .toggle::after{
-      content:""; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:left .2s ease;
-    }
-    .toggle.active{ background: var(--primary); }
-    .toggle.active::after{ left:23px; }
+/* ===== METRICS ===== */
+.metric{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:rgba(255,255,255,0.05);
+  border-radius:12px;padding:10px 14px;margin:8px 0;
+}
+.metric .label{display:flex;align-items:center;gap:8px;font-weight:600;}
+.badge{
+  background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.2);
+  padding:4px 8px;border-radius:999px;
+  font-size:13px;color:#fff;
+}
 
-    .muted{ opacity:.85; font-size:13px }
+/* ===== TOGGLE ===== */
+.toggle{
+  width:44px;height:24px;background:#999;border-radius:999px;position:relative;cursor:pointer;flex-shrink:0;
+}
+.toggle::after{
+  content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .2s ease;
+}
+.toggle.active{background:linear-gradient(90deg,#00f7ff,#6d00ff);}
+.toggle.active::after{left:23px;}
 
-    /* Chart containers */
-    .chart{ width:100%; height:260px }
-    .chart.small{ height:220px }
+/* ===== PROGRESS BAR ===== */
+.progress-container{
+  background:rgba(255,255,255,0.15);
+  border-radius:20px;height:10px;overflow:hidden;margin-top:6px;
+}
+.progress-bar{
+  height:100%;
+  background:linear-gradient(90deg,#05b031,#00f7ff,#6d00ff);
+  background-size:200%;
+  animation:barFlow 3s linear infinite;
+}
+@keyframes barFlow{
+  0%{background-position:0% 50%;}
+  100%{background-position:100% 50%;}
+}
 
-    .pill{
-      position:absolute; top:12px; right:12px; font-size:12px; padding:6px 10px; border-radius:999px;
-      background:#ffffff22; border:1px solid #ffffff33;
-    }
-    .ok{ color:#9cffb1 } .warn{ color:#ffd16b } .danger{ color:#ff9a9a }
+/* ===== CHARTS ===== */
+.chart{width:100%;height:260px;}
+.chart.small{height:220px;}
+.muted{opacity:0.85;font-size:13px;}
+.pill{
+  position:absolute;top:12px;right:12px;font-size:12px;padding:6px 10px;border-radius:999px;
+  background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);
+}
+.ok{color:#a9ffb9;} .warn{color:#ffd16b;} .danger{color:#ff9a9a;}
 
-    .footer{
-      text-align:center; margin-top:26px; color:#ddd; font-size:12px;
-    }
-  </style>
+/* ===== FOOTER ===== */
+.footer{
+  text-align:center;
+  padding:40px 20px;
+  font-size:13px;
+  color:#aaa;
+  border-top:1px solid rgba(255,255,255,0.05);
+}
+</style>
 </head>
 <body>
   <div class="container">
@@ -313,7 +402,7 @@
     const dLeft = daysUntil(expiryStr);
     const expiryDesc = document.getElementById("expiry-desc");
     if (dLeft===null){
-      expiryDesc.textContent = "Expiry date unavailable or invalid.";
+      expiryDesc.textContent = "♾️";
     } else if (dLeft < 0){
       expiryDesc.innerHTML = `<span class="danger"><i class="fa-solid fa-circle-exclamation"></i> Expired ${Math.abs(dLeft)} day(s) ago</span>`;
     } else {
@@ -367,7 +456,7 @@
     const gaugeOptions = {
       chart: { type:'radialBar', height:220, foreColor:'#fff', toolbar: { show: false } },
       series: [ pct ],
-      labels: ['Proximity to Expiry'],
+      labels: ['Expir Date'],
       colors: [ pct<60 ? '#7CB342' : (pct<85 ? '#FFC107' : '#EF5350') ],
       plotOptions:{
         radialBar:{
