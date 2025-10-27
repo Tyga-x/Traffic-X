@@ -5,8 +5,7 @@
 > 
 > Please respect the licensing terms when using this project.
 
-<img width="989" height="690" alt="image" src="https://github.com/user-attachments/assets/8d9bb2f9-5707-44b1-9743-f518c9bccd45" />
-
+<img width="1093" height="729" alt="image" src="https://github.com/user-attachments/assets/edc6506c-1d7c-4e95-b993-2ea9a59230e8" />
 
 # Traffic-X  2.0
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
