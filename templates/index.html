@@ -1,182 +1,213 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TRAFFIC-X</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <style>
-    @keyframes gradientBackground {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TRAFFIC-X</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+/* ===== BASE ===== */
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  font-family:'Poppins',sans-serif;
+  background:#03040a;
+  color:#e0e0e0;
+  overflow-x:hidden;
+  display:flex;
+  flex-direction:column;
+  min-height:100vh;
+}
 
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #1e1f26, #641B9F, #263D9B, #009688);
-      background-size: 400% 400%;
-      animation: gradientBackground 15s ease infinite;
-      color: #fff;
-    }
+/* ===== AURORA BACKGROUND ===== */
+body::before{
+  content:"";
+  position:fixed;inset:0;
+  background:
+    radial-gradient(circle at 25% 25%,rgba(0,255,200,0.12),transparent 40%),
+    radial-gradient(circle at 75% 75%,rgba(255,0,255,0.12),transparent 40%),
+    linear-gradient(120deg,rgba(0,255,255,0.1),rgba(0,0,0,0.1));
+  background-size:200% 200%;
+  animation:aurora 15s ease-in-out infinite;
+  z-index:0;
+}
+@keyframes aurora{
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
 
-    .container {
-      max-width: 1200px;
-      margin: auto;
-      padding: 40px 20px;
-    }
+/* ===== CONTAINER ===== */
+.container{
+  position:relative;
+  z-index:2;
+  max-width:1300px;
+  margin:auto;
+  padding:60px 20px;
+  flex:1;
+}
 
-    h2 {
-      text-align: center;
-      font-size: 36px;
-      font-weight: bold;
-      margin-bottom: 40px;
-      letter-spacing: 2px;
-    }
+/* ===== TITLE ===== */
+h2{
+  text-align:center;
+  font-size:48px;
+  font-weight:700;
+  letter-spacing:3px;
+  margin-bottom:60px;
+  color:#fff;
+  text-shadow:0 0 25px rgba(0,255,200,0.5);
+  position:relative;
+}
+h2::after{
+  content:"";
+  position:absolute;
+  left:50%;bottom:-10px;
+  transform:translateX(-50%);
+  width:100px;height:3px;
+  background:linear-gradient(90deg,transparent,#00ffd5,#7a00ff,transparent);
+  border-radius:5px;
+}
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-    }
+/* ===== GRID ===== */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:40px;
+}
+@media(max-width:1024px){.grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:700px){.grid{grid-template-columns:1fr;}}
 
-    @media (max-width: 992px) {
-      .grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
+/* ===== CARD ===== */
+.card{
+  position:relative;
+  padding:30px;
+  border-radius:22px;
+  overflow:hidden;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.1);
+  backdrop-filter:blur(20px);
+  transition:transform 0.5s ease, box-shadow 0.5s ease;
+  box-shadow:0 0 30px rgba(0,0,0,0.5);
+}
+.card:hover{
+  transform:translateY(-8px) scale(1.02);
+  box-shadow:0 0 40px rgba(0,255,255,0.2);
+}
 
-    @media (max-width: 600px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
-    }
+/* Floating gradient edge */
+.card::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  border-radius:24px;
+  background:linear-gradient(135deg,rgba(0,255,255,0.5),rgba(255,0,255,0.5),rgba(0,255,100,0.5));
+  background-size:400%;
+  animation:edgeFlow 10s linear infinite;
+  opacity:0.15;
+  z-index:1;
+}
+@keyframes edgeFlow{
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
 
-    .card {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 15px;
-      padding: 25px;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-      backdrop-filter: blur(12px);
-      transition: transform 0.2s ease;
-    }
+/* Shine sweep on hover */
+.card::after{
+  content:"";
+  position:absolute;
+  top:0;left:-75%;
+  width:50%;height:100%;
+  background:linear-gradient(120deg,transparent,rgba(255,255,255,0.4),transparent);
+  transform:skewX(-25deg);
+  transition:opacity 0.4s;
+  z-index:2;
+  opacity:0;
+}
+.card:hover::after{
+  animation:shineSweep 2s ease;
+  opacity:0.4;
+}
+@keyframes shineSweep{
+  0%{left:-75%;}
+  100%{left:125%;}
+}
 
-    .card:hover {
-      transform: translateY(-5px);
-    }
+.card > *{position:relative;z-index:3;}
 
-    .card h3 {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 20px;
-      margin-bottom: 20px;
-    }
+/* ===== CARD CONTENT ===== */
+.card h3{
+  display:flex;align-items:center;gap:10px;
+  font-size:20px;font-weight:600;
+  background:linear-gradient(90deg,#00f7ff,#ff00cc);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  margin-bottom:20px;
+}
+.card h3 i{color:#00ffcc;}
+.card form{display:flex;flex-direction:column;gap:12px;}
+.card input[type="text"]{
+  padding:12px 15px;border-radius:10px;border:none;
+  background:rgba(255,255,255,0.9);
+  color:#222;font-size:14px;
+}
+.card input[type="text"]:focus{box-shadow:0 0 0 2px #00f7ff;}
+.card button{
+  background:linear-gradient(90deg,#00f7ff,#6d00ff);
+  border:none;color:#fff;padding:12px;border-radius:10px;
+  font-weight:600;cursor:pointer;transition:transform 0.3s,box-shadow 0.3s;
+}
+.card button:hover{
+  transform:scale(1.05);
+  box-shadow:0 0 18px rgba(0,255,255,0.4);
+}
 
-    .card h3 i {
-      font-size: 22px;
-    }
+/* ===== PROGRESS ===== */
+.progress-container{
+  background:rgba(255,255,255,0.1);
+  border-radius:20px;
+  height:12px;margin-top:6px;overflow:hidden;
+}
+.progress-bar{
+  height:100%;
+  background:linear-gradient(90deg,#05b031,#00f7ff,#6d00ff);
+  background-size:200%;
+  animation:barFlow 3s linear infinite;
+}
+@keyframes barFlow{
+  0%{background-position:0% 50%;}
+  100%{background-position:100% 50%;}
+}
 
-    /* ==== FORM FIX (applies on all screen sizes) ==== */
-    .card form {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-top: 10px;
-    }
+/* ===== STATUS ===== */
+.ping-result,.server-status,.uptime-status{margin-top:10px;font-size:14px;color:#ccc;}
 
-    .card input[type="text"] {
-      padding: 12px 14px;
-      font-size: 14px;
-      border: none;
-      border-radius: 8px;
-      width: 100%;
-      background-color: #fff;
-      color: #333;
-      box-sizing: border-box;
-    }
+/* ===== SAFEGUARD ===== */
+.safeguard-bubble{
+  border:2px solid rgba(0,255,255,0.4);
+  border-radius:18px;
+  text-align:center;
+  padding:25px;
+  background:rgba(0,255,255,0.05);
+  transition:all 0.3s;
+  animation:pulseAura 4s ease-in-out infinite;
+}
+@keyframes pulseAura{
+  0%,100%{box-shadow:0 0 12px rgba(0,255,255,0.4);}
+  50%{box-shadow:0 0 30px rgba(255,0,255,0.5);}
+}
+.safeguard-bubble i{font-size:32px;color:#00ffe0;margin-bottom:8px;}
 
-    .card button {
-      padding: 12px;
-      font-size: 14px;
-      font-weight: bold;
-      border-radius: 8px;
-      background-color: #05B031;
-      color: #fff;
-      cursor: pointer;
-      transition: background 0.3s;
-      border: none;
-    }
-
-    .card button:hover {
-      background-color: #049428;
-    }
-
-    .progress-container {
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 5px;
-      height: 10px;
-      overflow: hidden;
-      margin-top: 5px;
-    }
-
-    .progress-bar {
-      height: 100%;
-      background-color: #05B031;
-      transition: width 0.5s ease-in-out;
-    }
-
-    .ping-result, .server-status, .uptime-status {
-      margin-top: 10px;
-      font-size: 14px;
-    }
-
-    .safeguard-bubble {
-      background-color: rgba(5, 176, 49, 0.15);
-      border: 2px dashed #05B031;
-      padding: 15px;
-      border-radius: 20px;
-      text-align: center;
-    }
-
-    .safeguard-bubble i {
-      font-size: 24px;
-      margin-bottom: 10px;
-      color: #05B031;
-    }
-
-    .footer {
-      text-align: center;
-      font-size: 14px;
-      color: #bbb;
-      margin-top: 50px;
-    }
-
-    .social-icons {
-      margin-top: 10px;
-    }
-
-    .social-icons a {
-      color: white;
-      margin: 0 10px;
-      font-size: 18px;
-      transition: transform 0.3s;
-    }
-
-    .social-icons a:hover {
-      transform: scale(1.2);
-      color: #05B031;
-    }
-  </style>
+/* ===== FOOTER ===== */
+.footer{text-align:center;padding:40px 20px;font-size:14px;color:#aaa;border-top:1px solid rgba(255,255,255,0.05);}
+.social-icons a{color:#fff;margin:0 10px;font-size:20px;transition:all 0.3s;opacity:0.8;}
+.social-icons a:hover{color:#00f7ff;transform:scale(1.2);text-shadow:0 0 10px #00f7ff;opacity:1;}
+</style>
 </head>
 <body>
   <div class="container">
     <h2>TRAFFIC-X</h2>
 
     <div class="grid">
-      <!-- User Input -->
       <div class="card">
         <h3><i class="fas fa-user"></i>User Name</h3>
         <form id="user-form" action="/usage" method="POST">
@@ -185,49 +216,36 @@
         </form>
       </div>
 
-      <!-- Server Resource Usage -->
       <div class="card">
         <h3><i class="fas fa-server"></i>Server Usage</h3>
         <p>CPU: <span id="cpu-usage">25%</span></p>
-        <div class="progress-container"><div class="progress-bar" id="cpu-progress" style="width: 25%;"></div></div>
-
+        <div class="progress-container"><div class="progress-bar" id="cpu-progress" style="width:25%;"></div></div>
         <p>Memory: <span id="memory-usage">25%</span></p>
-        <div class="progress-container"><div class="progress-bar" id="memory-progress" style="width: 25%;"></div></div>
-
+        <div class="progress-container"><div class="progress-bar" id="memory-progress" style="width:25%;"></div></div>
         <p>Disk: <span id="disk-usage">25%</span></p>
-        <div class="progress-container"><div class="progress-bar" id="disk-progress" style="width: 25%;"></div></div>
+        <div class="progress-container"><div class="progress-bar" id="disk-progress" style="width:25%;"></div></div>
       </div>
 
-      <!-- Ping Test -->
       <div class="card">
         <h3><i class="fas fa-wifi"></i>Ping Test</h3>
         <button id="ping-button">Ping Server</button>
         <div class="ping-result" id="ping-result">Ping: -</div>
-        <div class="server-status">
-          <i class="fas fa-map-marker-alt"></i> Location: <strong id="server-location">--</strong>
-        </div>
-        <div class="server-status">
-          <i class="fas fa-heartbeat"></i> Status: <strong id="server-status">Online</strong>
-        </div>
+        <div class="server-status"><i class="fas fa-map-marker-alt"></i> Location: <strong id="server-location">--</strong></div>
+        <div class="server-status"><i class="fas fa-heartbeat"></i> Status: <strong id="server-status">Online</strong></div>
       </div>
 
-      <!-- Network Traffic -->
       <div class="card">
         <h3><i class="fas fa-exchange-alt"></i>Network Traffic</h3>
         <p>Download: <strong id="download-traffic">10 Mbps</strong></p>
         <p>Upload: <strong id="upload-traffic">2 Mbps</strong></p>
-        <div class="uptime-status">
-          <i class="fas fa-clock"></i> Uptime: <strong id="uptime">99.98%</strong>
-        </div>
+        <div class="uptime-status"><i class="fas fa-clock"></i> Uptime: <strong id="uptime">99.98%</strong></div>
       </div>
 
-      <!-- Cloud Provider -->
       <div class="card">
         <h3><i class="fas fa-cloud"></i>Cloud Provider</h3>
         <p>Hosted on: <strong id="cloud-provider">Detecting...</strong></p>
       </div>
 
-      <!-- Safeguard Bubble -->
       <div class="card">
         <h3><i class="fas fa-shield-alt"></i>Server Safeguard</h3>
         <div class="safeguard-bubble">
@@ -237,7 +255,6 @@
       </div>
     </div>
 
-    <!-- Footer -->
     <div class="footer">
       <p>&copy; 2025 Traffic-X. All rights reserved.</p>
       <div class="social-icons">
