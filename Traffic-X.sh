@@ -38,34 +38,33 @@ while true; do
 done
 
 # -------- Auto-detect username (no prompt) --------
-# Prefer whoami when not root; when root, try SUDO_USER, logname, who -m, or first /home user
+# Prefer SUDO_USER when run via sudo; fall back to whoami; final fallback: logname.
 
-if [[ "$(whoami)" != "root" ]]; then
-  USERNAME="$(whoami)"
-else
-  # Running as root, try to find the real non-root user if available
-  if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
-    USERNAME="$SUDO_USER"
+USERNAME="${SUDO_USER:-$(whoami)}"
+
+# If we are truly root (whoami == root), trust whoami instead of SUDO_USER
+if [[ "$(whoami)" == "root" ]]; then
+  USERNAME="root"
+fi
+
+# If still unset or weird, try logname and other fallbacks
+if [[ -z "$USERNAME" || "$USERNAME" == "unknown" ]]; then
+  POSSIBLE_USER="$(logname 2>/dev/null || true)"
+  if [[ -n "${POSSIBLE_USER:-}" && "${POSSIBLE_USER}" != "root" ]]; then
+    USERNAME="$POSSIBLE_USER"
   else
-    POSSIBLE_USER="$(logname 2>/dev/null || true)"
-    if [[ -z "$POSSIBLE_USER" || "$POSSIBLE_USER" == "root" ]]; then
-      POSSIBLE_USER="$(who -m 2>/dev/null | awk '{print $1}' || true)"
+    POSSIBLE_USER="$(who -m 2>/dev/null | awk '{print $1}' || true)"
+    if [[ -n "$POSSIBLE_USER" ]]; then
+      USERNAME="$POSSIBLE_USER"
     fi
-    if [[ -z "$POSSIBLE_USER" || "$POSSIBLE_USER" == "root" ]]; then
-      POSSIBLE_USER="$(ls -1 /home 2>/dev/null | head -n1 || true)"
-    fi
-    USERNAME="${POSSIBLE_USER:-root}"
   fi
 fi
 
-# Resolve home directory safely
-HOME_DIR="$(getent passwd "$USERNAME" | cut -d: -f6 2>/dev/null || true)"
-if [[ -z "$HOME_DIR" ]]; then
-  HOME_DIR=$(eval echo "~$USERNAME")
-fi
+# Resolve home directory
+HOME_DIR=$(eval echo "~$USERNAME")
 
-# Verify that the home directory exists; fallback to /root if necessary
-if [[ -z "$HOME_DIR" || ! -d "$HOME_DIR" ]]; then
+# Validate home directory
+if [[ ! -d "$HOME_DIR" ]]; then
   if [[ -d "/root" ]]; then
     USERNAME="root"
     HOME_DIR="/root"
