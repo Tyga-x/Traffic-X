@@ -5,60 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>TRAFFIC-X</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
 <style>
-/* =========================
-   VALENTINE MODERN THEME
-   ========================= */
-:root{
-  --bg0:#07010b;
-  --bg1:#120016;
-  --glass: rgba(255,255,255,0.08);
-  --glass2: rgba(255,255,255,0.12);
-  --stroke: rgba(255,255,255,0.14);
-  --stroke2: rgba(255,255,255,0.22);
-
-  --pink:#ff4d8d;
-  --hot:#ff2d55;
-  --rose:#ff7aa8;
-  --purple:#b56cff;
-  --peach:#ffb3c7;
-
-  --text:#fdeaf1;
-  --muted: rgba(253,234,241,0.72);
-
-  --shadow: 0 18px 50px rgba(0,0,0,0.55);
-  --radius: 22px;
-}
-
+/* ===== BASE ===== */
 *{margin:0;padding:0;box-sizing:border-box;}
-html,body{height:100%;}
 body{
-  font-family: ui-sans-serif, system-ui, -apple-system, "Poppins", Segoe UI, Roboto, Arial, sans-serif;
-  color:var(--text);
-  background: radial-gradient(1200px 900px at 20% 10%, rgba(255,77,141,0.18), transparent 55%),
-              radial-gradient(1000px 800px at 80% 20%, rgba(181,108,255,0.16), transparent 60%),
-              radial-gradient(1200px 900px at 50% 95%, rgba(255,179,199,0.10), transparent 60%),
-              linear-gradient(180deg, var(--bg0), var(--bg1));
+  font-family:'Poppins',sans-serif;
+  background:#03040a;
+  color:#e0e0e0;
   overflow-x:hidden;
   display:flex;
   flex-direction:column;
   min-height:100vh;
 }
 
-/* Soft sparkle/aurora */
+/* ===== AURORA BACKGROUND ===== */
 body::before{
   content:"";
-  position:fixed; inset:0;
+  position:fixed;inset:0;
   background:
-    radial-gradient(circle at 25% 35%, rgba(255,77,141,0.16), transparent 40%),
-    radial-gradient(circle at 78% 55%, rgba(181,108,255,0.14), transparent 44%),
-    radial-gradient(circle at 50% 85%, rgba(255,179,199,0.10), transparent 50%),
-    linear-gradient(120deg, rgba(255,45,85,0.08), rgba(0,0,0,0.00), rgba(181,108,255,0.08));
+    radial-gradient(circle at 25% 25%,rgba(0,255,200,0.12),transparent 40%),
+    radial-gradient(circle at 75% 75%,rgba(255,0,255,0.12),transparent 40%),
+    linear-gradient(120deg,rgba(0,255,255,0.1),rgba(0,0,0,0.1));
   background-size:200% 200%;
-  animation: aurora 16s ease-in-out infinite;
+  animation:aurora 15s ease-in-out infinite;
   z-index:0;
-  filter: blur(0.2px);
 }
 @keyframes aurora{
   0%{background-position:0% 50%;}
@@ -66,131 +36,74 @@ body::before{
   100%{background-position:0% 50%;}
 }
 
-/* Floating hearts layer */
-.hearts{
-  position:fixed; inset:0;
-  pointer-events:none;
-  z-index:1;
-  overflow:hidden;
-}
-.heart{
-  position:absolute;
-  font-size:16px;
-  opacity:0.18;
-  filter: drop-shadow(0 10px 20px rgba(255,77,141,0.25));
-  animation: floatUp linear infinite;
-  transform: translateY(120vh);
-}
-@keyframes floatUp{
-  0%{ transform: translateY(120vh) translateX(0) rotate(0deg); opacity:0; }
-  10%{opacity:0.20;}
-  100%{ transform: translateY(-20vh) translateX(60px) rotate(25deg); opacity:0; }
-}
-
-/* Layout */
+/* ===== CONTAINER ===== */
 .container{
   position:relative;
   z-index:2;
-  max-width:1200px;
+  max-width:1300px;
   margin:auto;
-  padding:56px 18px 34px;
+  padding:60px 20px;
   flex:1;
 }
 
-/* Title */
+/* ===== TITLE ===== */
 h2{
   text-align:center;
-  font-size: clamp(34px, 4vw, 54px);
-  font-weight:800;
-  letter-spacing: 2px;
-  margin-bottom: 46px;
+  font-size:48px;
+  font-weight:700;
+  letter-spacing:3px;
+  margin-bottom:60px;
+  color:#fff;
+  text-shadow:0 0 25px rgba(0,255,200,0.5);
   position:relative;
-  line-height:1.05;
 }
-.brand{
-  display:inline-flex;
-  align-items:center;
-  gap:12px;
-  padding: 10px 18px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(255,77,141,0.18), rgba(181,108,255,0.14));
-  border:1px solid rgba(255,255,255,0.10);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 18px 50px rgba(0,0,0,0.35);
-}
-.brand .logo-heart{
-  width:34px;height:34px;
-  display:grid; place-items:center;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(255,77,141,0.35), rgba(181,108,255,0.20));
-  border:1px solid rgba(255,255,255,0.16);
-  animation: heartBeat 1.7s ease-in-out infinite;
-}
-@keyframes heartBeat{
-  0%,100%{transform: scale(1);}
-  50%{transform: scale(1.10);}
-}
-.brand span{
-  background: linear-gradient(90deg, #ffd1df, #ff4d8d, #b56cff);
-  -webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;
-  text-shadow: 0 10px 30px rgba(255,77,141,0.14);
-}
-
 h2::after{
   content:"";
   position:absolute;
-  left:50%; bottom:-14px;
-  transform: translateX(-50%);
-  width: 190px; height: 4px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, rgba(255,77,141,0.9), rgba(181,108,255,0.85), transparent);
-  opacity:0.75;
+  left:50%;bottom:-10px;
+  transform:translateX(-50%);
+  width:100px;height:3px;
+  background:linear-gradient(90deg,transparent,#00ffd5,#7a00ff,transparent);
+  border-radius:5px;
 }
 
-/* Grid */
+/* ===== GRID ===== */
 .grid{
   display:grid;
   grid-template-columns:repeat(3,1fr);
-  gap:22px;
+  gap:40px;
 }
-@media(max-width:1024px){ .grid{grid-template-columns:repeat(2,1fr);} }
-@media(max-width:700px){ .grid{grid-template-columns:1fr;} }
+@media(max-width:1024px){.grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:700px){.grid{grid-template-columns:1fr;}}
 
-/* Card */
+/* ===== CARD ===== */
 .card{
   position:relative;
-  padding: 22px 22px 20px;
-  border-radius: var(--radius);
-  background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.06));
-  border: 1px solid var(--stroke);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(18px);
+  padding:30px;
+  border-radius:22px;
   overflow:hidden;
-  transform: translateZ(0);
-  transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.1);
+  backdrop-filter:blur(20px);
+  transition:transform 0.5s ease, box-shadow 0.5s ease;
+  box-shadow:0 0 30px rgba(0,0,0,0.5);
 }
 .card:hover{
-  transform: translateY(-8px);
-  border-color: var(--stroke2);
-  box-shadow: 0 26px 70px rgba(0,0,0,0.62);
+  transform:translateY(-8px) scale(1.02);
+  box-shadow:0 0 40px rgba(0,255,255,0.2);
 }
 
-/* Animated edge glow */
+/* Floating gradient edge */
 .card::before{
   content:"";
-  position:absolute; inset:-2px;
-  border-radius: calc(var(--radius) + 2px);
-  background: linear-gradient(135deg,
-    rgba(255,77,141,0.55),
-    rgba(181,108,255,0.45),
-    rgba(255,179,199,0.45),
-    rgba(255,45,85,0.50)
-  );
-  background-size: 400% 400%;
-  animation: edgeFlow 10s linear infinite;
-  opacity: 0.14;
-  z-index:0;
+  position:absolute;
+  inset:-2px;
+  border-radius:24px;
+  background:linear-gradient(135deg,rgba(0,255,255,0.5),rgba(255,0,255,0.5),rgba(0,255,100,0.5));
+  background-size:400%;
+  animation:edgeFlow 10s linear infinite;
+  opacity:0.15;
+  z-index:1;
 }
 @keyframes edgeFlow{
   0%{background-position:0% 50%;}
@@ -198,251 +111,124 @@ h2::after{
   100%{background-position:0% 50%;}
 }
 
-/* Shine sweep */
+/* Shine sweep on hover */
 .card::after{
   content:"";
   position:absolute;
-  top:0; left:-80%;
-  width:52%; height:100%;
-  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.40), transparent);
-  transform: skewX(-22deg);
+  top:0;left:-75%;
+  width:50%;height:100%;
+  background:linear-gradient(120deg,transparent,rgba(255,255,255,0.4),transparent);
+  transform:skewX(-25deg);
+  transition:opacity 0.4s;
+  z-index:2;
   opacity:0;
-  z-index:1;
 }
 .card:hover::after{
-  opacity:.55;
-  animation: shine 1.8s ease;
+  animation:shineSweep 2s ease;
+  opacity:0.4;
 }
-@keyframes shine{
-  0%{left:-80%;}
-  100%{left:130%;}
+@keyframes shineSweep{
+  0%{left:-75%;}
+  100%{left:125%;}
 }
 
-.card > *{ position:relative; z-index:2; }
+.card > *{position:relative;z-index:3;}
 
-/* Card title */
+/* ===== CARD CONTENT ===== */
 .card h3{
-  display:flex; align-items:center; gap:10px;
-  font-size: 18px;
-  font-weight: 750;
-  margin-bottom: 14px;
-  color: var(--text);
+  display:flex;align-items:center;gap:10px;
+  font-size:20px;font-weight:600;
+  background:linear-gradient(90deg,#00f7ff,#ff00cc);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  margin-bottom:20px;
 }
-.card h3 i{
-  width:34px;height:34px;
-  display:grid;place-items:center;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(255,77,141,0.32), rgba(181,108,255,0.20));
-  border:1px solid rgba(255,255,255,0.16);
-}
-.card p{
-  color: var(--muted);
-  font-size: 14px;
-  margin-bottom: 8px;
-}
-
-/* Inputs */
-.card form{ display:flex; flex-direction:column; gap:12px; }
+.card h3 i{color:#00ffcc;}
+.card form{display:flex;flex-direction:column;gap:12px;}
 .card input[type="text"]{
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.14);
-  outline:none;
-  background: rgba(255,255,255,0.10);
-  color: var(--text);
-  font-size: 14px;
-  transition: box-shadow .25s ease, border-color .25s ease, transform .25s ease;
+  padding:12px 15px;border-radius:10px;border:none;
+  background:rgba(255,255,255,0.9);
+  color:#222;font-size:14px;
 }
-.card input[type="text"]::placeholder{ color: rgba(253,234,241,0.55); }
-.card input[type="text"]:focus{
-  border-color: rgba(255,77,141,0.55);
-  box-shadow: 0 0 0 4px rgba(255,77,141,0.18);
-  transform: translateY(-1px);
-}
-
-/* Buttons */
+.card input[type="text"]:focus{box-shadow:0 0 0 2px #00f7ff;}
 .card button{
-  border:none;
-  border-radius: 14px;
-  padding: 12px 14px;
-  color: #0b0610;
-  font-weight: 800;
-  cursor:pointer;
-  background: linear-gradient(90deg, #ffd1df, #ff4d8d, #b56cff);
-  box-shadow: 0 14px 30px rgba(255,77,141,0.18);
-  transition: transform .2s ease, box-shadow .25s ease, filter .25s ease;
+  background:linear-gradient(90deg,#00f7ff,#6d00ff);
+  border:none;color:#fff;padding:12px;border-radius:10px;
+  font-weight:600;cursor:pointer;transition:transform 0.3s,box-shadow 0.3s;
 }
 .card button:hover{
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 18px 40px rgba(255,77,141,0.24);
-  filter: saturate(1.08);
+  transform:scale(1.05);
+  box-shadow:0 0 18px rgba(0,255,255,0.4);
 }
-.card button:active{ transform: translateY(0) scale(0.99); }
 
-/* Progress */
+/* ===== PROGRESS ===== */
 .progress-container{
-  background: rgba(255,255,255,0.10);
-  border-radius: 999px;
-  height: 12px;
-  overflow:hidden;
-  border:1px solid rgba(255,255,255,0.08);
-  margin: 8px 0 10px;
+  background:rgba(255,255,255,0.1);
+  border-radius:20px;
+  height:12px;margin-top:6px;overflow:hidden;
 }
 .progress-bar{
   height:100%;
-  width:0%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(255,209,223,0.95), rgba(255,77,141,0.95), rgba(181,108,255,0.95));
-  background-size: 200% 200%;
-  animation: barFlow 3.2s linear infinite;
-  transition: width .6s ease;
+  background:linear-gradient(90deg,#05b031,#00f7ff,#6d00ff);
+  background-size:200%;
+  animation:barFlow 3s linear infinite;
 }
 @keyframes barFlow{
   0%{background-position:0% 50%;}
   100%{background-position:100% 50%;}
 }
 
-/* Status text */
-.ping-result,.server-status,.uptime-status{
-  margin-top: 10px;
-  font-size: 14px;
-  color: var(--muted);
-}
-.server-status i, .uptime-status i{
-  color: rgba(255,209,223,0.85);
-  margin-right: 6px;
-}
+/* ===== STATUS ===== */
+.ping-result,.server-status,.uptime-status{margin-top:10px;font-size:14px;color:#ccc;}
 
-/* Safeguard bubble */
+/* ===== SAFEGUARD ===== */
 .safeguard-bubble{
-  border:1px solid rgba(255,255,255,0.16);
-  border-radius: 18px;
+  border:2px solid rgba(0,255,255,0.4);
+  border-radius:18px;
   text-align:center;
-  padding: 18px 16px;
-  background: rgba(255,255,255,0.08);
-  transition: transform .25s ease, box-shadow .35s ease, border-color .35s ease;
-  position:relative;
-  overflow:hidden;
+  padding:25px;
+  background:rgba(0,255,255,0.05);
+  transition:all 0.3s;
+  animation:pulseAura 4s ease-in-out infinite;
 }
-.safeguard-bubble::before{
-  content:"";
-  position:absolute; inset:-40%;
-  background: radial-gradient(circle, rgba(255,77,141,0.22), transparent 55%);
-  animation: bubblePulse 3.2s ease-in-out infinite;
+@keyframes pulseAura{
+  0%,100%{box-shadow:0 0 12px rgba(0,255,255,0.4);}
+  50%{box-shadow:0 0 30px rgba(255,0,255,0.5);}
 }
-@keyframes bubblePulse{
-  0%,100%{ transform: translate(0,0) scale(1); opacity:.9; }
-  50%{ transform: translate(10px, -8px) scale(1.12); opacity:.7; }
-}
-.safeguard-bubble i{
-  font-size: 34px;
-  color: rgba(255,209,223,0.95);
-  display:inline-block;
-  margin-bottom: 8px;
-  animation: lockWiggle 2.8s ease-in-out infinite;
-}
-@keyframes lockWiggle{
-  0%,100%{ transform: rotate(0deg); }
-  50%{ transform: rotate(-6deg); }
-}
-.safeguard-bubble span{ position:relative; z-index:1; color: var(--text); }
+.safeguard-bubble i{font-size:32px;color:#00ffe0;margin-bottom:8px;}
 
-/* Footer */
-.footer{
-  margin-top: 34px;
-  text-align:center;
-  padding: 26px 16px;
-  font-size: 14px;
-  color: rgba(253,234,241,0.62);
-  border-top:1px solid rgba(255,255,255,0.08);
-}
-.social-icons a{
-  color: rgba(253,234,241,0.92);
-  margin: 0 10px;
-  font-size: 20px;
-  transition: transform .2s ease, filter .2s ease, opacity .2s ease;
-  opacity: 0.85;
-}
-.social-icons a:hover{
-  transform: translateY(-2px) scale(1.12);
-  opacity: 1;
-  filter: drop-shadow(0 10px 20px rgba(255,77,141,0.25));
-}
-
-/* Cute toast */
-.toast{
-  position: fixed;
-  left: 50%;
-  bottom: 20px;
-  transform: translateX(-50%) translateY(14px);
-  background: rgba(255,255,255,0.12);
-  border:1px solid rgba(255,255,255,0.16);
-  backdrop-filter: blur(16px);
-  color: var(--text);
-  padding: 10px 14px;
-  border-radius: 999px;
-  box-shadow: 0 18px 60px rgba(0,0,0,0.5);
-  z-index: 9;
-  opacity:0;
-  pointer-events:none;
-  transition: opacity .25s ease, transform .25s ease;
-}
-.toast.show{
-  opacity:1;
-  transform: translateX(-50%) translateY(0);
-}
-.toast i{ color: rgba(255,209,223,0.95); margin-right:8px; }
-
-/* Respect reduced motion */
-@media (prefers-reduced-motion: reduce){
-  *{animation:none!important;transition:none!important;}
-}
+/* ===== FOOTER ===== */
+.footer{text-align:center;padding:40px 20px;font-size:14px;color:#aaa;border-top:1px solid rgba(255,255,255,0.05);}
+.social-icons a{color:#fff;margin:0 10px;font-size:20px;transition:all 0.3s;opacity:0.8;}
+.social-icons a:hover{color:#00f7ff;transform:scale(1.2);text-shadow:0 0 10px #00f7ff;opacity:1;}
 </style>
 </head>
-
 <body>
-  <!-- floating hearts -->
-  <div class="hearts" aria-hidden="true" id="hearts"></div>
-
   <div class="container">
-    <h2>
-      <span class="brand">
-        <span class="logo-heart"><i class="fas fa-heart"></i></span>
-        <span>TRAFFIC-X</span>
-      </span>
-    </h2>
+    <h2>TRAFFIC-X</h2>
 
     <div class="grid">
       <div class="card">
         <h3><i class="fas fa-user"></i>User Name</h3>
         <form id="user-form" action="/usage" method="POST">
           <input type="text" name="user_input" placeholder="Enter User Name" required />
-          <button type="submit"><i class="fas fa-sparkles"></i> Check Usage</button>
+          <button type="submit">Check Usage</button>
         </form>
       </div>
 
       <div class="card">
         <h3><i class="fas fa-server"></i>Server Usage</h3>
-
         <p>CPU: <span id="cpu-usage">25%</span></p>
-        <div class="progress-container">
-          <div class="progress-bar" id="cpu-progress" style="width:25%;"></div>
-        </div>
-
+        <div class="progress-container"><div class="progress-bar" id="cpu-progress" style="width:25%;"></div></div>
         <p>Memory: <span id="memory-usage">25%</span></p>
-        <div class="progress-container">
-          <div class="progress-bar" id="memory-progress" style="width:25%;"></div>
-        </div>
-
+        <div class="progress-container"><div class="progress-bar" id="memory-progress" style="width:25%;"></div></div>
         <p>Disk: <span id="disk-usage">25%</span></p>
-        <div class="progress-container">
-          <div class="progress-bar" id="disk-progress" style="width:25%;"></div>
-        </div>
+        <div class="progress-container"><div class="progress-bar" id="disk-progress" style="width:25%;"></div></div>
       </div>
 
       <div class="card">
         <h3><i class="fas fa-wifi"></i>Ping Test</h3>
-        <button id="ping-button"><i class="fas fa-heart-pulse"></i> Ping Server</button>
+        <button id="ping-button">Ping Server</button>
         <div class="ping-result" id="ping-result">Ping: -</div>
         <div class="server-status"><i class="fas fa-map-marker-alt"></i> Location: <strong id="server-location">--</strong></div>
         <div class="server-status"><i class="fas fa-heartbeat"></i> Status: <strong id="server-status">Online</strong></div>
@@ -472,133 +258,97 @@ h2::after{
     <div class="footer">
       <p>&copy; 2025 Traffic-X. All rights reserved.</p>
       <div class="social-icons">
-        <a href="https://github.com/Tyga-x/Traffic-X" target="_blank" rel="noopener">
-          <i class="fab fa-github"></i>
-        </a>
+        <a href="https://github.com/Tyga-x/Traffic-X" target="_blank"><i class="fab fa-github"></i></a>
       </div>
     </div>
   </div>
 
-  <div class="toast" id="toast"><i class="fas fa-heart"></i><span id="toast-text">Hello</span></div>
+  <script>
+    // Ping logic
+    document.getElementById("ping-button").addEventListener("click", async () => {
+      const start = Date.now();
+      const result = document.getElementById("ping-result");
+      result.textContent = "Pinging...";
 
-<script>
-/* =========================
-   Cute floating hearts
-   ========================= */
-(function spawnHearts(){
-  const container = document.getElementById("hearts");
-  const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (!container || prefersReduced) return;
+      try {
+        await fetch("/ping");
+        const latency = Date.now() - start;
+        result.textContent = `Ping: ${latency} ms`;
+      } catch {
+        result.textContent = "Ping failed";
+      }
+    });
 
-  const emojis = ["💗","💖","💘","💞","💓","💕"];
-  const count = 18;
+    // Server data updates
+    setInterval(async () => {
+      try {
+        const res = await fetch("/server-status");
+        const data = await res.json();
+        document.getElementById("cpu-usage").textContent = `${data.cpu}%`;
+        document.getElementById("memory-usage").textContent = `${data.ram}%`;
+        document.getElementById("disk-usage").textContent = `${data.disk}%`;
 
-  for(let i=0;i<count;i++){
-    const el = document.createElement("div");
-    el.className = "heart";
-    el.textContent = emojis[Math.floor(Math.random()*emojis.length)];
-    el.style.left = Math.random()*100 + "vw";
-    el.style.animationDuration = (8 + Math.random()*10).toFixed(2) + "s";
-    el.style.animationDelay = (-Math.random()*10).toFixed(2) + "s";
-    el.style.fontSize = (12 + Math.random()*18).toFixed(0) + "px";
-    container.appendChild(el);
-  }
-})();
+        document.getElementById("cpu-progress").style.width = `${data.cpu}%`;
+        document.getElementById("memory-progress").style.width = `${data.ram}%`;
+        document.getElementById("disk-progress").style.width = `${data.disk}%`;
+      } catch (e) {
+        console.error("Status fetch failed");
+      }
+    }, 2000);
 
-/* =========================
-   Tiny toast helper
-   ========================= */
-function showToast(msg){
-  const t = document.getElementById("toast");
-  const tx = document.getElementById("toast-text");
-  if(!t || !tx) return;
-  tx.textContent = msg;
-  t.classList.add("show");
-  clearTimeout(showToast._tm);
-  showToast._tm = setTimeout(()=>t.classList.remove("show"), 1600);
-}
+    // Fetch server location
+    (async () => {
+      try {
+        const res = await fetch("/server-location");
+        const loc = await res.json();
+        document.getElementById("server-location").textContent = `${loc.city}, ${loc.country}`;
+      } catch {
+        document.getElementById("server-location").textContent = "Unavailable";
+      }
+    })();
 
-/* =========================
-   Ping logic (keeps your endpoints)
-   ========================= */
-document.getElementById("ping-button").addEventListener("click", async () => {
-  const start = Date.now();
-  const result = document.getElementById("ping-result");
-  result.textContent = "Pinging...";
-  showToast("Sending a little ping 💘");
-
-  try {
-    await fetch("/ping");
-    const latency = Date.now() - start;
-    result.textContent = `Ping: ${latency} ms`;
-    showToast(`Ping ok: ${latency} ms 💗`);
-  } catch {
-    result.textContent = "Ping failed";
-    showToast("Ping failed 💔");
-  }
-});
-
-/* =========================
-   Server data updates
-   ========================= */
-setInterval(async () => {
-  try {
-    const res = await fetch("/server-status");
-    const data = await res.json();
-
-    document.getElementById("cpu-usage").textContent = `${data.cpu}%`;
-    document.getElementById("memory-usage").textContent = `${data.ram}%`;
-    document.getElementById("disk-usage").textContent = `${data.disk}%`;
-
-    document.getElementById("cpu-progress").style.width = `${data.cpu}%`;
-    document.getElementById("memory-progress").style.width = `${data.ram}%`;
-    document.getElementById("disk-progress").style.width = `${data.disk}%`;
-  } catch (e) {
-    // keep quiet
-  }
-}, 2000);
-
-/* =========================
-   Fetch server location
-   ========================= */
-(async () => {
-  try {
-    const res = await fetch("/server-location");
-    const loc = await res.json();
-    document.getElementById("server-location").textContent = `${loc.city}, ${loc.country}`;
-  } catch {
-    document.getElementById("server-location").textContent = "Unavailable";
-  }
-})();
-
-/* =========================
-   Fetch cloud provider name
-   ========================= */
-(async () => {
-  try {
-    const res = await fetch("/cloud-provider");
-    const data = await res.json();
-    document.getElementById("cloud-provider").textContent = data.provider || "Unknown";
-  } catch {
-    document.getElementById("cloud-provider").textContent = "Unavailable";
-  }
-})();
-
-/* =========================
-   Live Mbps (Download/Upload)
-   ========================= */
-async function refreshNet() {
-  try {
-    const r = await fetch("/net-live");
-    const data = await r.json();
-    if (data && data.total) {
-      document.getElementById("download-traffic").textContent = data.total.rx_mbps.toFixed(2) + " Mbps";
-      document.getElementById("upload-traffic").textContent   = data.total.tx_mbps.toFixed(2) + " Mbps";
+    // Fetch cloud provider name
+  (async () => {
+    try {
+      const res = await fetch("/cloud-provider");
+      const data = await res.json();
+      document.getElementById("cloud-provider").textContent = data.provider || "Unknown";
+    } catch {
+      document.getElementById("cloud-provider").textContent = "Unavailable";
     }
-  } catch (e) {}
-}
-refreshNet();
-setInterval(refreshNet, 2000);
+  })();
+
+  // ===== NEW: Live Mbps (Download/Upload) =====
+  async function refreshNet() {
+    try {
+      const r = await fetch("/net-live");
+      const data = await r.json();
+      if (data && data.total) {
+        document.getElementById("download-traffic").textContent = data.total.rx_mbps.toFixed(2) + " Mbps";
+        document.getElementById("upload-traffic").textContent   = data.total.tx_mbps.toFixed(2) + " Mbps";
+      }
+    } catch (e) {
+      // Ignore transient errors
+    }
+  }
+  refreshNet();
+  setInterval(refreshNet, 2000);
+
+  // OPTIONAL: Per-connection top talkers (requires /net-connections + sudoers)
+  /*
+  async function refreshConns(){
+    try {
+      const r = await fetch("/net-connections");
+      const data = await r.json();
+      if (data.available && data.rows?.length) {
+        // Example of rendering:
+        // document.getElementById("top-conns").innerHTML = data.rows.slice(0,5).map(
+        //   x => \`<div class="metric"><div class="label"><i class="fas fa-terminal"></i> \${x.process}</div>
+        //           <div class="badge">\${x.rx_mbps}/\${x.tx_mbps} Mbps</div></div>\`
+        // ).join("");
+      }
+    } catch(e){}
+  }
+  // setInterval(refreshConns, 4000);
+  */
 </script>
-</body>
-</html>
