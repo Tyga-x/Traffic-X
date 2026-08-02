@@ -96,7 +96,10 @@ def _notification_worker():
     while True:
         try:
             bot_token = get_setting("bot_token")
+                      
             renew_link = get_setting("renew_link", "https://t.me/your_admin")
+            # Permanent fix: Clean up line breaks so Telegram formats it perfectly
+            renew_link = renew_link.replace("\r\n", "\n").replace("\r", "\n").strip()
             
             if not bot_token:
                 time.sleep(600)
@@ -125,6 +128,7 @@ def _notification_worker():
                 
                 chat_id = tg_row["tg_chat_id"]
                 
+       
                 # Rule 1: Expiry Date (3 Days)
                 exp_time = user["expiry_time"]
                 if exp_time and float(exp_time) > 0:
@@ -136,7 +140,16 @@ def _notification_worker():
                         tx_cur.execute("SELECT last_notified FROM notif_log WHERE xui_email=? AND type='expiry'", (email,))
                         log_row = tx_cur.fetchone()
                         if not log_row or (now - float(log_row["last_notified"]) >= 86400):
-                            msg = f"⚠️ <b>Expiry Alert</b>\nHello {email}, your config expires in {int(days_left)} day(s).\nRenew here: {renew_link}"
+                            # Clean the text from the admin panel so it formats perfectly
+                            clean_link = renew_link.replace("\r\n", "\n").replace("\r", "\n").strip()
+                            
+                            msg = (
+                                f"⚠️ <b>Expiry Alert</b>\n"
+                                f"━━━━━━━━━━━━━━━\n"
+                                f"👤 <b>User:</b> {email}\n"
+                                f"⏳ <b>Expires in:</b> {int(days_left)} day(s)\n\n"
+                                f"🔥 <b>Renew here:</b>\n{clean_link}"
+                            )
                             requests.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"})
                             tx_cur.execute("INSERT OR REPLACE INTO notif_log (xui_email, type, last_notified) VALUES (?, 'expiry', ?)", (email, str(now)))
                             tx_conn.commit()
@@ -151,7 +164,16 @@ def _notification_worker():
                         tx_cur.execute("SELECT last_notified FROM notif_log WHERE xui_email=? AND type='data'", (email,))
                         log_row = tx_cur.fetchone()
                         if not log_row or (now - float(log_row["last_notified"]) >= 86400):
-                            msg = f"📊 <b>Data Limit Alert</b>\nHello {email}, you have less than {int(remaining_gb)} GB remaining.\nRenew here: {renew_link}"
+                            # Clean the text from the admin panel so it formats perfectly
+                            clean_link = renew_link.replace("\r\n", "\n").replace("\r", "\n").strip()
+                            
+                            msg = (
+                                f"📊 <b>Data Limit Alert</b>\n"
+                                f"━━━━━━━━━━━━━━━\n"
+                                f"👤 <b>User:</b> {email}\n"
+                                f"📉 <b>Remaining:</b> Less than {int(remaining_gb)} GB\n\n"
+                                f"🔥 <b>Renew here:</b>\n{clean_link}"
+                            )
                             requests.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"})
                             tx_cur.execute("INSERT OR REPLACE INTO notif_log (xui_email, type, last_notified) VALUES (?, 'data', ?)", (email, str(now)))
                             tx_conn.commit()
