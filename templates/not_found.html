@@ -5,24 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#000000">
     <title>Not Found - Traffic-X</title>
-
-    !-- TELEGRAM BANNER PLACED CORRECTLY IN HTML -->
-    {% if tg_bot_link %}
-    <div style="background: linear-gradient(135deg, #0a84ff 0%, #5e5ce6 100%); padding: 16px; border-radius: 16px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);">
-        <div style="flex: 1;">
-            <strong style="color: #fff; font-size: 16px; display: block;">🔔 Get Auto-Renew Alerts!</strong>
-            <p style="color: rgba(255,255,255,0.8); font-size: 13px; margin: 4px 0 0;">Never let your VPN expire. Start our Telegram Bot.</p>
-        </div>
-        <a href="{{ tg_bot_link }}" target="_blank" style="background: #fff; color: #0a84ff; padding: 10px 16px; border-radius: 12px; text-decoration: none; font-weight: 700; white-space: nowrap; transition: transform 0.2s;">
-            Start Bot
-        </a>
-    </div>
-    {% endif %}
-    
     <style>
-
-
-        
         /* === iOS-Inspired Styling === */
         * {
             margin: 0;
@@ -133,7 +116,7 @@
         .btn-back {
             display: block;
             width: 100%;
-            margin-top: 32px;
+            margin-top: 24px;
             padding: 16px;
             background: #0a84ff;
             color: #ffffff;
@@ -193,6 +176,19 @@
         
         <p>We couldn't find any data for:<br><span class="user-input">{{ user_input }}</span></p>
         <p style="font-size: 13px; margin-top: 8px;">Please check the Email or ID and try again.</p>
+
+        <!-- TELEGRAM BANNER PLACED INSIDE THE GLASS CARD -->
+        {% if tg_bot_link %}
+        <div style="background: linear-gradient(135deg, #0a84ff 0%, #5e5ce6 100%); padding: 14px; border-radius: 14px; margin-top: 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);">
+            <div style="flex: 1; text-align: left;">
+                <strong style="color: #fff; font-size: 14px; display: block;">🔔 Get Alerts!</strong>
+                <p style="color: rgba(255,255,255,0.8); font-size: 11px; margin: 2px 0 0;">Never let your VPN expire.</p>
+            </div>
+            <a href="{{ tg_bot_link }}" target="_blank" style="background: #fff; color: #0a84ff; padding: 8px 14px; border-radius: 10px; text-decoration: none; font-weight: 700; white-space: nowrap; font-size: 13px;">
+                Start Bot
+            </a>
+        </div>
+        {% endif %}
         
         <a href="/" class="btn-back">Back to Search</a>
     </div>
