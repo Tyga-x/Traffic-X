@@ -12,12 +12,13 @@ show_menu() {
     echo "Please choose an option:"
     echo "1. Run Traffic-X (Install)"
     echo "2. Uninstall Traffic-X"
-    echo "3. Exit"
+    echo "3. Change Admin Password"
+    echo "4. Exit"
 }
 
 while true; do
     show_menu
-    read -p "Enter your choice [1-3]: " CHOICE
+    read -p "Enter your choice [1-4]: " CHOICE
     case $CHOICE in
         1) echo "Proceeding with Traffic-X installation..."; break ;;
         2)
@@ -26,8 +27,28 @@ while true; do
             echo "Traffic-X has been uninstalled."
             exit 0
             ;;
-        3) echo "Exiting..."; exit 0 ;;
-        *) echo "Invalid choice. Please select a valid option [1-3]." ;;
+        3)
+            echo "Searching for Traffic-X database..."
+            TX_DB=$(find /home /opt /root -name "traffic_x.db" 2>/dev/null | head -n 1)
+            if [ -z "$TX_DB" ]; then
+                echo "❌ ERROR: Could not find traffic_x.db. Is Traffic-X installed?"
+                exit 1
+            fi
+            
+            read -p "Enter the new Admin Password: " NEW_PASS
+            if [ -z "$NEW_PASS" ]; then
+                echo "❌ Password cannot be empty. Exiting."
+                exit 1
+            fi
+            
+            sqlite3 "$TX_DB" "INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_password', '$NEW_PASS');"
+            echo "✅ Admin password updated successfully!"
+            echo "Restarting Traffic-X to apply changes..."
+            sudo systemctl restart traffic-x
+            exit 0
+            ;;
+        4) echo "Exiting..."; exit 0 ;;
+        *) echo "Invalid choice. Please select a valid option [1-4]." ;;
     esac
 done
 
