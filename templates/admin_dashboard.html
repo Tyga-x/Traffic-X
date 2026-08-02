@@ -162,6 +162,13 @@
         
         .menu-toggle { display: none; position: fixed; top: 24px; left: 24px; z-index: 60; background: var(--glass-bg); border: 1px solid var(--glass-border); color: #fff; width: 48px; height: 48px; border-radius: 14px; font-size: 20px; cursor: pointer; backdrop-filter: blur(20px); align-items: center; justify-content: center; }
 
+                /* Pagination */
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 32px; }
+        .page-btn { min-width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; text-decoration: none; font-weight: 700; transition: 0.2s; padding: 0 12px; }
+        .page-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .page-btn.active { background: var(--accent-gradient); color: #fff; border-color: transparent; box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3); }
+        .page-btn.disabled { opacity: 0.3; pointer-events: none; }
+
         /* Mobile Responsive */
         @media (max-width: 1024px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
