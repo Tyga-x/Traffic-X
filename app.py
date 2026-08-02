@@ -21,6 +21,7 @@ from flask_limiter.util import get_remote_address
 from tx_telegram import tg_bp, start_notifier, get_setting, set_setting
 from tx_telegram import tg_bp, start_notifier
 from tx_admin import admin_bp
+from tx_telegram import tg_bp, start_notifier, get_setting
 
 app = Flask(__name__)
 
@@ -158,9 +159,10 @@ _nethogs_cache = {"t": 0.0, "data": None}
 @app.route("/")
 def home():
     try:
-        return render_template("index.html")
+        tg_bot_link = get_setting("tg_bot_link", "")
+        return render_template("index.html", tg_bot_link=tg_bot_link)
     except Exception:
-        return jsonify({"ok": True, "message": "Traffic-X API is running. Add templates/index.html for UI."})
+        return jsonify({"ok": True, "message": "Traffic-X API is running."})
 
 @app.route("/usage", methods=["POST"])
 @limiter.limit("30 per minute")
@@ -222,9 +224,11 @@ def usage():
     finally:
         conn.close() # Explicitly close to prevent FD leaks
 
-    try:
+        try:
+        tg_bot_link = get_setting("tg_bot_link", "")
         return render_template(
             "result.html",
+            tg_bot_link=tg_bot_link,
             email=email,
             up=up,
             down=down,
