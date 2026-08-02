@@ -42,6 +42,11 @@ def admin_logout():
 def admin_dashboard():
     if not is_logged_in(): return redirect("/admin/login")
     
+    # Pagination Params
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    active_tab = request.args.get('tab', 'overview')
+    
     # Get current settings
     bot_token = get_setting("bot_token", "")
     renew_link = get_setting("renew_link", "")
@@ -87,53 +92,54 @@ def admin_dashboard():
     except Exception:
         pass
 
-    # Get linked users for the table
-    conn = sqlite3.connect(TX_DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT xui_email, tg_chat_id FROM tg_users ORDER BY xui_email")
-    linked_users = c.fetchall()
-    conn.close()
-
-    # === Calculate Telegram User Status (Active/Inactive) ===
-    tg_users_status = []
+    # === Paginate Telegram Users ===
     try:
         tx_conn = sqlite3.connect(TX_DB_PATH, timeout=5)
-        tx_conn.row_factory = sqlite3.Row
         tx_cur = tx_conn.cursor()
-        tx_cur.execute("SELECT xui_email, tg_chat_id FROM tg_users ORDER BY xui_email")
+        total_pages = max(1, (tg_linked_count + per_page - 1) // per_page)
+        if page > total_pages: page = total_pages
+        offset = (page - 1) * per_page
+        
+        tx_cur.execute("SELECT xui_email, tg_chat_id FROM tg_users ORDER BY xui_email LIMIT ? OFFSET ?", (per_page, offset))
         tg_rows = tx_cur.fetchall()
         tx_conn.close()
+    except:
+        tg_rows = []
+        total_pages = 1
+
+    # Build lists for current page
+    linked_users = []
+    tg_users_status = []
+    try:
+        xui_conn = sqlite3.connect(XUI_DB_PATH, timeout=5)
+        xui_conn.row_factory = sqlite3.Row
+        xui_cur = xui_conn.cursor()
+        now_ms = time.time() * 1000
         
-        if tg_rows:
-            xui_conn = sqlite3.connect(XUI_DB_PATH, timeout=5)
-            xui_conn.row_factory = sqlite3.Row
-            xui_cur = xui_conn.cursor()
-            now_ms = time.time() * 1000
+        for t_row in tg_rows:
+            email = t_row[0]
+            chat_id = t_row[1]
+            linked_users.append({"xui_email": email, "tg_chat_id": chat_id})
             
-            for t_row in tg_rows:
-                email = t_row["xui_email"]
-                chat_id = t_row["tg_chat_id"]
-                status = "Active"
-                status_color = "green"
-                
-                xui_cur.execute("SELECT up, down, total, expiry_time FROM client_traffics WHERE email=?", (email,))
-                x_row = xui_cur.fetchone()
-                
-                if x_row:
-                    if x_row["expiry_time"] and float(x_row["expiry_time"]) > 0 and float(x_row["expiry_time"]) < now_ms:
-                        status = "Expired"
+            status = "Active"
+            status_color = "green"
+            xui_cur.execute("SELECT up, down, total, expiry_time FROM client_traffics WHERE email=?", (email,))
+            x_row = xui_cur.fetchone()
+            
+            if x_row:
+                if x_row["expiry_time"] and float(x_row["expiry_time"]) > 0 and float(x_row["expiry_time"]) < now_ms:
+                    status = "Expired"
+                    status_color = "red"
+                elif x_row["total"] and float(x_row["total"]) > 0:
+                    if float(x_row["up"]) + float(x_row["down"]) >= float(x_row["total"]):
+                        status = "Out of Data"
                         status_color = "red"
-                    elif x_row["total"] and float(x_row["total"]) > 0:
-                        if float(x_row["up"]) + float(x_row["down"]) >= float(x_row["total"]):
-                            status = "Out of Data"
-                            status_color = "red"
-                else:
-                    status = "Not Found in X-UI"
-                    status_color = "orange"
-                    
-                tg_users_status.append({"email": email, "chat_id": chat_id, "status": status, "color": status_color})
-            xui_conn.close()
+            else:
+                status = "Not Found in X-UI"
+                status_color = "orange"
+                
+            tg_users_status.append({"email": email, "chat_id": chat_id, "status": status, "color": status_color})
+        xui_conn.close()
     except Exception:
         pass
 
@@ -166,6 +172,9 @@ def admin_dashboard():
         linked_users=linked_users,
         tg_users_status=tg_users_status,
         recent_alerts=recent_alerts,
+        page=page,
+        total_pages=total_pages,
+        active_tab=active_tab,
         stats={
             "total_users": total_users,
             "active_users": active_users,
