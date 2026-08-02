@@ -159,6 +159,51 @@ def _notification_worker():
             
         time.sleep(3600) # Run every 1 hour
 
+
+# === Backup Engine ===
+def send_backup_document():
+    """Sends the traffic_x.db file to the Admin's Telegram Chat ID."""
+    bot_token = get_setting("bot_token")
+    admin_chat_id = get_setting("admin_chat_id")
+    
+    if not bot_token or not admin_chat_id:
+        return False, "Bot token or Admin Chat ID not set."
+    if not os.path.exists(TX_DB_PATH):
+        return False, "Database file not found."
+
+    try:
+        url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
+        with open(TX_DB_PATH, "rb") as db_file:
+            files = {"document": db_file}
+            data = {"chat_id": admin_chat_id, "caption": "📦 Automatic Daily Backup (Traffic-X)"}
+            r = requests.post(url, files=files, data=data, timeout=30)
+            
+        if r.status_code == 200 and r.json().get("ok"):
+            return True, "Backup sent successfully."
+        return False, f"Telegram API error: {r.text}"
+    except Exception as e:
+        return False, str(e)
+
+def _backup_worker():
+    """Background thread that sends a backup every 24 hours."""
+    time.sleep(60) # Wait 1 min on startup
+    
+    while True:
+        try:
+            # Check if 24 hours have passed since last backup
+            last_backup = float(get_setting("last_backup_time", 0))
+            now = time.time()
+            
+            if now - last_backup >= 86400: # 86400 seconds = 24 hours
+                success, msg = send_backup_document()
+                if success:
+                    set_setting("last_backup_time", str(now))
+                # If it fails, it will just try again in 1 hour
+        except Exception:
+            pass
+            
+        time.sleep(3600) # Check every 1 hour
+
 # === Start Notifier with File Lock ===
 def start_notifier(app):
     """Starts the engine, but ONLY in the first Gunicorn worker."""
@@ -178,3 +223,7 @@ def start_notifier(app):
     
     t2 = threading.Thread(target=_notification_worker, daemon=True)
     t2.start()
+    
+    # Start the Backup Worker
+    t3 = threading.Thread(target=_backup_worker, daemon=True)
+    t3.start()
