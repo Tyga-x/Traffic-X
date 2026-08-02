@@ -7,10 +7,9 @@ import traceback
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timezone
 
-# Create a Flask Blueprint for Telegram routes
+# Create a Flask Blueprint for Telegram routes (we still need it for admin)
 tg_bp = Blueprint('telegram', __name__)
 
-# Database path (same folder as app.py)
 import os
 TX_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "traffic_x.db")
 XUI_DB_PATH = os.getenv("DB_PATH", "/etc/x-ui/x-ui.db")
@@ -40,39 +39,51 @@ def set_setting(key, value):
     conn.commit()
     conn.close()
 
-# Initialize DB when this file is loaded
 init_tx_db()
 
-# === Telegram Webhook Route ===
-@tg_bp.route("/tg-webhook", methods=["POST"])
-def tg_webhook():
-    try:
-        data = request.get_json()
-        if not data or "message" not in data:
-            return jsonify({"ok": True})
-            
-        msg = data["message"]
-        chat_id = str(msg["chat"]["id"])
-        text = msg.get("text", "")
-
-        if text.startswith("/start"):
+# === Long Polling Receiver ===
+def _polling_worker():
+    """Continuously asks Telegram for new messages from users."""
+    time.sleep(10) # Wait for app to start
+    offset = 0
+    
+    while True:
+        try:
             bot_token = get_setting("bot_token")
             if not bot_token:
-                return jsonify({"ok": True})
+                time.sleep(15) # Wait until admin configures the token
+                continue
                 
-            reply = (
-                f"👋 Welcome to Traffic-X Alerts!\n\n"
-                f"Your Telegram Chat ID is: <b>{chat_id}</b>\n\n"
-                f"Please send this ID to the Admin to link your account."
-            )
-            requests.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={
-                "chat_id": chat_id,
-                "text": reply,
-                "parse_mode": "HTML"
-            })
-        return jsonify({"ok": True})
-    except Exception:
-        return jsonify({"ok": True})
+            url = f"https://api.telegram.org/bot{bot_token}/getUpdates"
+            params = {"timeout": 10, "offset": offset}
+            
+            # Ask Telegram for new messages (waits up to 10 seconds)
+            r = requests.post(url, json=params, timeout=15)
+            data = r.json()
+            
+            if data.get("ok"):
+                for update in data.get("result", []):
+                    offset = update["update_id"] + 1
+                    if "message" in update:
+                        msg = update["message"]
+                        chat_id = str(msg["chat"]["id"])
+                        text = msg.get("text", "")
+                        
+                        if text.startswith("/start"):
+                            reply = (
+                                f"👋 Welcome to Traffic-X Alerts!\n\n"
+                                f"Your Telegram Chat ID is: <b>{chat_id}</b>\n\n"
+                                f"Please send this ID to the Admin to link your account."
+                            )
+                            requests.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={
+                                "chat_id": chat_id,
+                                "text": reply,
+                                "parse_mode": "HTML"
+                            })
+        except Exception:
+            pass # Ignore timeouts and network blips, just try again
+            
+        time.sleep(1)
 
 # === Background Notification Engine ===
 def _notification_worker():
@@ -89,7 +100,6 @@ def _notification_worker():
                 
             now = time.time()
             
-            # Read x-ui users
             xui_conn = sqlite3.connect(XUI_DB_PATH, timeout=10)
             xui_conn.row_factory = sqlite3.Row
             xui_cur = xui_conn.cursor()
@@ -97,7 +107,6 @@ def _notification_worker():
             users = xui_cur.fetchall()
             xui_conn.close()
             
-            # Read TX DB
             tx_conn = sqlite3.connect(TX_DB_PATH, timeout=10)
             tx_conn.row_factory = sqlite3.Row
             tx_cur = tx_conn.cursor()
@@ -145,11 +154,14 @@ def _notification_worker():
 
             tx_conn.close()
         except Exception as e:
-            app.logger.error(f"Notification worker failed:\n{traceback.format_exc()}")
+            pass # Log error silently to prevent thread crash
             
         time.sleep(3600) # Run every 1 hour
 
 def start_notifier(app):
-    """Call this from app.py to start the background thread"""
-    t = threading.Thread(target=_notification_worker, daemon=True)
-    t.start()
+    """Starts both the message receiver and the notification engine"""
+    t1 = threading.Thread(target=_polling_worker, daemon=True)
+    t1.start()
+    
+    t2 = threading.Thread(target=_notification_worker, daemon=True)
+    t2.start()
