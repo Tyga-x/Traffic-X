@@ -61,6 +61,13 @@
                 <button type="submit" class="btn">Add Link</button>
             </form>
 
+            <!-- Clear Logs Button (Correctly Placed) -->
+            <div style="margin-bottom: 16px; text-align: right;">
+                <form method="POST" action="/admin/clear-logs" onsubmit="return confirm('Clear notification memory?');">
+                    <button type="submit" class="btn" style="background: #ff9f0a; padding: 8px 16px; font-size: 14px;">Clear Logs</button>
+                </form>
+            </div>
+
             <table>
                 <thead>
                     <tr>
