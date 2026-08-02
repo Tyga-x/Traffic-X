@@ -41,8 +41,8 @@
                 <label for="admin_chat_id">Admin Telegram Chat ID (For Backups)</label>
                 <input type="text" id="admin_chat_id" name="admin_chat_id" value="{{ admin_chat_id }}" placeholder="e.g., 123456789">
 
-                <label for="renew_link">Renewal Link (Sent to users)</label>
-                <input type="text" id="renew_link" name="renew_link" value="{{ renew_link }}" placeholder="https://t.me/YourAdmin">
+                <label for="renew_link">Renewal Info (Sent to users)</label>
+<textarea id="renew_link" name="renew_link" rows="4" style="resize: vertical; width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #fff; font-size: 16px; padding: 12px;" placeholder="Type your custom renewal message and links here...">{{ renew_link }}</textarea>
                 
                 <label for="theme">User UI Theme</label>
                 <select id="theme" name="theme">
