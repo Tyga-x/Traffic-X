@@ -4,120 +4,304 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel - Traffic-X</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #000; color: #f5f5f7; padding: 40px 20px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        h1 { font-size: 32px; margin-bottom: 32px; text-align: center; }
-        h2 { font-size: 20px; margin-bottom: 16px; color: #0a84ff; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; }
-        .card { background: rgba(28, 28, 30, 0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 24px; margin-bottom: 32px; }
-        label { display: block; font-size: 14px; color: #8e8e93; margin-bottom: 8px; margin-top: 16px; }
-        input, select { width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #fff; font-size: 16px; outline: none; }
-        input:focus, select:focus { border-color: #0a84ff; }
-        .btn { display: inline-block; margin-top: 20px; padding: 12px 24px; background: #0a84ff; color: #fff; text-decoration: none; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; transition: 0.2s; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #000; color: #f5f5f7; display: flex; min-height: 100vh; overflow-x: hidden; }
+        
+        body::before { content: ""; position: fixed; inset: 0; background: radial-gradient(circle at 10% 10%, rgba(10, 132, 255, 0.1), transparent 40%), radial-gradient(circle at 90% 90%, rgba(94, 92, 230, 0.1), transparent 40%); z-index: 0; }
+        
+        /* === SIDEBAR === */
+        .sidebar { width: 260px; background: rgba(20, 20, 22, 0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-right: 1px solid rgba(255,255,255,0.08); padding: 24px 0; position: fixed; height: 100vh; z-index: 10; display: flex; flex-direction: column; transition: transform 0.3s ease; }
+        .brand { padding: 0 24px 32px; font-size: 22px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 12px; }
+        .brand i { color: #0a84ff; }
+        .nav-item { padding: 16px 24px; color: #8e8e93; text-decoration: none; font-size: 15px; font-weight: 500; display: flex; align-items: center; gap: 14px; transition: 0.2s; border-left: 3px solid transparent; cursor: pointer; }
+        .nav-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .nav-item.active { background: rgba(10, 132, 255, 0.1); color: #0a84ff; border-left-color: #0a84ff; }
+        .nav-item i { width: 20px; text-align: center; }
+        .sidebar-footer { margin-top: auto; padding: 24px; border-top: 1px solid rgba(255,255,255,0.08); }
+        .logout-btn { display: flex; align-items: center; gap: 10px; color: #ff453a; text-decoration: none; font-size: 15px; font-weight: 500; }
+
+        /* === MAIN CONTENT === */
+        .main-content { flex: 1; margin-left: 260px; padding: 40px; position: relative; z-index: 1; width: calc(100% - 260px); }
+        
+        .page-section { display: none; animation: fadeIn 0.3s ease; }
+        .page-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .page-title { font-size: 28px; margin-bottom: 32px; font-weight: 700; letter-spacing: -1px; }
+
+        /* === STAT CARDS === */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-bottom: 40px; }
+        .stat-card { background: rgba(28, 28, 30, 0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 28px; transition: 0.3s; }
+        .stat-card:hover { transform: translateY(-4px); border-color: rgba(10, 132, 255, 0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .stat-icon { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 20px; }
+        .stat-value { font-size: 32px; font-weight: 700; margin-bottom: 6px; letter-spacing: -1px; }
+        .stat-label { font-size: 14px; color: #8e8e93; font-weight: 500; }
+
+        /* === CARDS === */
+        .card { background: rgba(28, 28, 30, 0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 32px; margin-bottom: 32px; }
+        .card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+        .card-header i { color: #0a84ff; font-size: 20px; }
+        .card-header h2 { font-size: 18px; color: #fff; font-weight: 600; }
+        
+        label { display: block; font-size: 13px; color: #8e8e93; margin-bottom: 8px; margin-top: 20px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+        input, select, textarea { width: 100%; padding: 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #fff; font-size: 15px; outline: none; font-family: inherit; transition: 0.2s; }
+        input:focus, select:focus, textarea:focus { border-color: #0a84ff; background: rgba(10,132,255,0.05); }
+        textarea { resize: vertical; min-height: 100px; }
+        
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-top: 24px; padding: 14px 28px; background: #0a84ff; color: #fff; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 15px; border: none; cursor: pointer; transition: 0.2s; }
         .btn:active { transform: scale(0.97); }
-        .btn-sm { padding: 6px 12px; background: #ff453a; font-size: 14px; }
+        .btn-sm { padding: 8px 14px; background: #ff453a; font-size: 13px; margin-top: 0; }
+        .btn-outline { background: rgba(255,255,255,0.1); }
+
         table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        th { color: #8e8e93; font-weight: 600; }
-        .header-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-        .logout { color: #ff453a; text-decoration: none; font-size: 14px; }
+        th { text-align: left; padding: 14px; color: #8e8e93; font-size: 13px; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.1); text-transform: uppercase; }
+        td { padding: 16px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 15px; }
+        
+        .menu-toggle { display: none; position: fixed; top: 20px; left: 20px; z-index: 20; background: rgba(28,28,30,0.8); border: 1px solid rgba(255,255,255,0.1); color: #fff; width: 44px; height: 44px; border-radius: 12px; font-size: 18px; cursor: pointer; z-index: 100; }
+
+        /* Mobile Responsive */
+        @media (max-width: 1024px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            #overview > div[style*="grid-template-columns: 2fr 1fr"] {
+                grid-template-columns: 1fr !important;
+            }
+        }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); z-index: 50; }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; width: 100%; padding: 24px 20px; padding-top: 80px; }
+            .menu-toggle { display: flex; align-items: center; justify-content: center; }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header-nav">
-            <h1>Traffic-X Admin</h1>
-            <a href="/admin/logout" class="logout">Logout</a>
-        </div>
 
-        <!-- Settings Card -->
-        <div class="card">
-            <h2>System Settings</h2>
-            <form method="POST" action="/admin/save-settings">
-                <label for="bot_token">Telegram Bot Token</label>
-                <input type="text" id="bot_token" name="bot_token" value="{{ bot_token }}" placeholder="123456:ABC-DEF...">
-                
-                <label for="admin_chat_id">Admin Telegram Chat ID (For Backups)</label>
-                <input type="text" id="admin_chat_id" name="admin_chat_id" value="{{ admin_chat_id }}" placeholder="e.g., 123456789">
-                <label for="tg_bot_link">Telegram Bot Link (Shown to Users)</label>
-                <input type="text" id="tg_bot_link" name="tg_bot_link" value="{{ tg_bot_link }}" placeholder="https://t.me/YourBotUsername">
-                <label for="renew_link">Renewal Info (Sent to users)</label>
-<textarea id="renew_link" name="renew_link" rows="4" style="resize: vertical; width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #fff; font-size: 16px; padding: 12px;" placeholder="Type your custom renewal message and links here...">{{ renew_link }}</textarea>
-                
-                <label for="theme">User UI Theme</label>
-                <select id="theme" name="theme">
-                    <option value="dark" {% if current_theme == 'dark' %}selected{% endif %}>Dark (iOS)</option>
-                    <option value="light" {% if current_theme == 'light' %}selected{% endif %}>Light</option>
-                    <option value="neon" {% if current_theme == 'neon' %}selected{% endif %}>Neon / Cyberpunk</option>
-                </select>
-                
-                <button type="submit" class="btn">Save Settings</button>
-            </form>
-        </div>
+    <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')"><i class="fas fa-bars"></i></button>
 
-        <!-- User Linking Card -->
-        <div class="card">
-            <h2>Link Telegram Users</h2>
-            <form method="POST" action="/admin/link-user" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <input type="text" name="xui_email" placeholder="x-ui Email (e.g., test@xui.com)" style="flex: 2; min-width: 200px;" required>
-                <input type="text" name="tg_chat_id" placeholder="Telegram Chat ID" style="flex: 1; min-width: 100px;" required>
-                <button type="submit" class="btn">Add Link</button>
-            </form>
-
-            <div style="margin-bottom: 16px; text-align: right;">
-                <form method="POST" action="/admin/clear-logs" onsubmit="return confirm('Clear notification memory?');">
-                    <button type="submit" class="btn" style="background: #ff9f0a; padding: 8px 16px; font-size: 14px;">Clear Logs</button>
-                </form>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>X-UI Email</th>
-                        <th>Telegram Chat ID</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user in linked_users %}
-                    <tr>
-                        <td>{{ user.xui_email }}</td>
-                        <td>{{ user.tg_chat_id }}</td>
-                        <td>
-                            <form method="POST" action="/admin/delete-link/{{ user.xui_email }}">
-                                <button type="submit" class="btn btn-sm">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="3" style="text-align: center; color: #8e8e93;">No users linked yet.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Backup & Restore Card -->
-        <div class="card">
-            <h2>Backup & Restore</h2>
-            <p style="color: #8e8e93; font-size: 14px; margin-bottom: 16px;">
-                The database is automatically sent to your Admin Chat ID every 24 hours. 
-                You can test it now, or upload an old backup to restore your settings on a new VPS.
-            </p>
-            
-            <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
-                <form method="POST" action="/admin/test-backup">
-                    <button type="submit" class="btn" style="background: #30d158;">Test Backup Now</button>
-                </form>
-                
-                <form method="POST" action="/admin/upload-db" enctype="multipart/form-data" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    <input type="file" name="db_file" accept=".db" required style="margin-top: 0; background: transparent; border: 1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: 12px; width: auto;">
-                    <button type="submit" class="btn" style="background: #ff9f0a; margin-top: 0;">Upload & Restore</button>
-                </form>
-            </div>
+    <div class="sidebar">
+        <div class="brand"><i class="fa-solid fa-traffic-light"></i> Traffic-X</div>
+        <div class="nav-item active" onclick="switchPage('overview', this)"><i class="fa-solid fa-gauge-high"></i> Overview</div>
+        <div class="nav-item" onclick="switchPage('settings', this)"><i class="fa-solid fa-gear"></i> Settings</div>
+        <div class="nav-item" onclick="switchPage('users', this)"><i class="fa-solid fa-users"></i> Telegram Users</div>
+        <div class="nav-item" onclick="switchPage('backup', this)"><i class="fa-solid fa-database"></i> Backup & Restore</div>
+        <div class="sidebar-footer">
+            <a href="/admin/logout" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
         </div>
     </div>
+
+    <div class="main-content">
+        
+        <!-- === PAGE: OVERVIEW === -->
+        <div id="overview" class="page-section active">
+            <h1 class="page-title">Dashboard Overview</h1>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(10, 132, 255, 0.15); color: #0a84ff;"><i class="fa-solid fa-users"></i></div>
+                    <div class="stat-value">{{ stats.total_users }}</div>
+                    <div class="stat-label">Total X-UI Users</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(48, 209, 88, 0.15); color: #30d158;"><i class="fa-solid fa-circle-check"></i></div>
+                    <div class="stat-value">{{ stats.active_users }}</div>
+                    <div class="stat-label">Active Users</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(255, 69, 58, 0.15); color: #ff453a;"><i class="fa-solid fa-circle-xmark"></i></div>
+                    <div class="stat-value">{{ stats.expired_users }}</div>
+                    <div class="stat-label">Expired Users</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(191, 90, 242, 0.15); color: #bf5af2;"><i class="fa-solid fa-chart-line"></i></div>
+                    <div class="stat-value" style="font-size: 26px; margin-top: 6px;">{{ stats.total_bandwidth }}</div>
+                    <div class="stat-label">Total Bandwidth Used</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(255, 159, 10, 0.15); color: #ff9f0a;"><i class="fa-solid fa-robot"></i></div>
+                    <div class="stat-value">{{ stats.tg_linked }}</div>
+                    <div class="stat-label">Telegram Alerts Active</div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start;">
+                <div>
+                    <div class="card">
+                        <div class="card-header"><i class="fa-solid fa-user-clock"></i><h2>Telegram User Status</h2></div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User Email</th>
+                                    <th>Telegram Chat ID</th>
+                                    <th style="text-align:right;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for u in tg_users_status %}
+                                <tr>
+                                    <td style="font-weight: 500;">{{ u.email }}</td>
+                                    <td style="color: #8e8e93; font-family: monospace;">{{ u.chat_id }}</td>
+                                    <td style="text-align: right;">
+                                        {% if u.color == 'green' %}
+                                            <span style="background: rgba(48, 209, 88, 0.15); color: #30d158; padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 600;">
+                                                <i class="fa-solid fa-circle" style="font-size: 8px; margin-right: 4px;"></i>{{ u.status }}
+                                            </span>
+                                        {% elif u.color == 'red' %}
+                                            <span style="background: rgba(255, 69, 58, 0.15); color: #ff453a; padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 600;">
+                                                <i class="fa-solid fa-circle" style="font-size: 8px; margin-right: 4px;"></i>{{ u.status }}
+                                            </span>
+                                        {% else %}
+                                            <span style="background: rgba(255, 159, 10, 0.15); color: #ff9f0a; padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 600;">
+                                                <i class="fa-solid fa-circle" style="font-size: 8px; margin-right: 4px;"></i>{{ u.status }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="3" style="text-align: center; color: #8e8e93; padding: 24px;">No Telegram users linked yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card" style="position: sticky; top: 40px;">
+                    <div class="card-header"><i class="fa-solid fa-bell"></i><h2>Recent Bot Activity</h2></div>
+                    {% for alert in recent_alerts %}
+                    <div style="display: flex; gap: 12px; padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <div style="width: 36px; height: 36px; background: rgba(10, 132, 255, 0.15); color: #0a84ff; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="fa-solid {% if alert.type == 'Expiry Alert' %}fa-clock{% else %}fa-database{% endif %}"></i>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 14px; color: #fff; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ alert.email }}</div>
+                            <div style="font-size: 12px; color: #8e8e93; margin-top: 2px;">{{ alert.type }} • {{ alert.time }}</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div style="text-align: center; color: #8e8e93; padding: 40px 20px;">
+                        <i class="fa-solid fa-check" style="font-size: 24px; margin-bottom: 12px; display: block;"></i>
+                        No recent alerts sent.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- === PAGE: SETTINGS === -->
+        <div id="settings" class="page-section">
+            <h1 class="page-title">System Settings</h1>
+            <div class="card">
+                <form method="POST" action="/admin/save-settings">
+                    <label for="bot_token">Telegram Bot Token</label>
+                    <input type="text" id="bot_token" name="bot_token" value="{{ bot_token }}" placeholder="123456:ABC-DEF...">
+                    
+                    <label for="tg_bot_link">Telegram Bot Link (Shown to Users on Website)</label>
+                    <input type="text" id="tg_bot_link" name="tg_bot_link" value="{{ tg_bot_link }}" placeholder="https://t.me/YourBotUsername">
+
+                    <label for="admin_chat_id">Admin Telegram Chat ID (For Backups)</label>
+                    <input type="text" id="admin_chat_id" name="admin_chat_id" value="{{ admin_chat_id }}" placeholder="e.g., 123456789">
+
+                    <label for="renew_link">Renewal Info (Sent to users in alerts)</label>
+                    <textarea id="renew_link" name="renew_link" placeholder="Type your custom renewal message and links here...">{{ renew_link }}</textarea>
+                    
+                    <label for="theme">User UI Theme</label>
+                    <select id="theme" name="theme">
+                        <option value="dark" {% if current_theme == 'dark' %}selected{% endif %}>Dark (iOS)</option>
+                        <option value="light" {% if current_theme == 'light' %}selected{% endif %}>Light</option>
+                        <option value="neon" {% if current_theme == 'neon' %}selected{% endif %}>Neon / Cyberpunk</option>
+                    </select>
+                    
+                    <button type="submit" class="btn"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- === PAGE: USERS === -->
+        <div id="users" class="page-section">
+            <h1 class="page-title">Telegram Users</h1>
+            <div class="card">
+                <div class="card-header"><i class="fa-solid fa-link"></i><h2>Link New User</h2></div>
+                <form method="POST" action="/admin/link-user" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                    <div style="flex: 2; min-width: 200px;">
+                        <label style="margin-top: 0;">X-UI Email</label>
+                        <input type="text" name="xui_email" placeholder="user@domain.com" required>
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <label style="margin-top: 0;">Telegram Chat ID</label>
+                        <input type="text" name="tg_chat_id" placeholder="123456789" required>
+                    </div>
+                    <button type="submit" class="btn" style="margin-top: 0; height: 50px;"><i class="fa-solid fa-plus"></i> Add</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="card-header" style="justify-content: space-between; width: 100%;">
+                    <div style="display:flex; align-items:center; gap:12px;"><i class="fa-solid fa-list"></i><h2>Linked Accounts</h2></div>
+                    <form method="POST" action="/admin/clear-logs" onsubmit="return confirm('Clear notification memory?');">
+                        <button type="submit" class="btn btn-outline" style="background: rgba(255,159,10,0.2); color: #ff9f0a; padding: 8px 16px; font-size: 13px; margin-top: 0;"><i class="fa-solid fa-trash"></i> Clear Alert Logs</button>
+                    </form>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>X-UI Email</th><th>Telegram Chat ID</th><th style="text-align:right;">Action</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for user in linked_users %}
+                        <tr>
+                            <td>{{ user.xui_email }}</td>
+                            <td>{{ user.tg_chat_id }}</td>
+                            <td style="text-align: right;">
+                                <form method="POST" action="/admin/delete-link/{{ user.xui_email }}">
+                                    <button type="submit" class="btn btn-sm"><i class="fa-solid fa-xmark"></i> Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" style="text-align: center; color: #8e8e93; padding: 24px;">No users linked yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- === PAGE: BACKUP === -->
+        <div id="backup" class="page-section">
+            <h1 class="page-title">Backup & Restore</h1>
+            <div class="card">
+                <div class="card-header"><i class="fa-solid fa-cloud-arrow-down"></i><h2>Database Management</h2></div>
+                <p style="color: #8e8e93; font-size: 15px; margin-bottom: 32px; line-height: 1.6;">The database is automatically sent to your Admin Chat ID every 24 hours. You can test it now, or upload an old backup to restore your settings on a new VPS.</p>
+                
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: center;">
+                    <form method="POST" action="/admin/test-backup">
+                        <button type="submit" class="btn" style="background: #30d158; margin-top: 0;"><i class="fa-solid fa-paper-plane"></i> Test Backup Now</button>
+                    </form>
+                    
+                    <form method="POST" action="/admin/upload-db" enctype="multipart/form-data" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 1px dashed rgba(255,255,255,0.2); padding: 16px; border-radius: 16px;">
+                        <label style="margin: 0; text-transform: none; letter-spacing: 0; font-weight: 600; color: #fff;">Upload DB File:</label>
+                        <input type="file" name="db_file" accept=".db" required style="margin-top: 0; background: transparent; border: none; padding: 0; width: auto;">
+                        <button type="submit" class="btn" style="background: #ff9f0a; margin-top: 0;"><i class="fa-solid fa-upload"></i> Restore</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function switchPage(pageId, element) {
+            document.querySelectorAll('.page-section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            document.getElementById(pageId).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(nav => {
+                nav.classList.remove('active');
+            });
+            element.classList.add('active');
+            if(window.innerWidth <= 768) {
+                document.querySelector('.sidebar').classList.remove('open');
+            }
+        }
+    </script>
 </body>
 </html>
