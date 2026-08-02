@@ -67,7 +67,8 @@ def save_settings():
     set_setting("bot_token", request.form.get("bot_token", ""))
     set_setting("renew_link", request.form.get("renew_link", ""))
     set_setting("theme", request.form.get("theme", "dark"))
-    set_setting("admin_chat_id", request.form.get("admin_chat_id", ""))  # <--- FIXED: Added this line to save it to the database
+    set_setting("admin_chat_id", request.form.get("admin_chat_id", ""))  
+    set_setting("tg_bot_link", request.form.get("tg_bot_link", "")) 
     
     return redirect("/admin")
 
