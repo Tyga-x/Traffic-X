@@ -18,13 +18,12 @@ import traceback
 from typing import Any, Dict, Optional, Union
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from tx_telegram import tg_bp, start_notifier, get_setting, set_setting
-from tx_telegram import tg_bp, start_notifier
-from tx_admin import admin_bp
+
+# Cleaned up imports
 from tx_telegram import tg_bp, start_notifier, get_setting
+from tx_admin import admin_bp
 
 app = Flask(__name__)
-
 app.secret_key = "traffic-x-secret-key-2024" # Required for admin login sessions
 app.register_blueprint(tg_bp)
 app.register_blueprint(admin_bp)
@@ -42,10 +41,11 @@ limiter = Limiter(get_remote_address, app=app, default_limits=["120 per minute"]
 # === Utilities ===
 def convert_bytes(byte_size: Optional[Union[int, float, str]]) -> str:
     """Convert byte counts to human-friendly units."""
-    if byte_size in (None, "", "Not Available"):
-        return "0 Bytes"
+    if byte_size in (None, "", "Not Available", 0, "0"):
+        return "Unlimited" if byte_size in (0, "0") else "0 Bytes"
     try:
         b = float(byte_size)
+        if b == 0: return "Unlimited"
     except Exception:
         return "0 Bytes"
     units = ["Bytes", "KB", "MB", "GB", "TB"]
@@ -69,12 +69,10 @@ def get_db() -> sqlite3.Connection:
 
 def parse_expiry(ms_or_s: Optional[Union[int, float]]) -> str:
     """Accepts ms or s epoch; returns UTC ISO-like string, 'Unlimited' or 'Invalid Date'."""
-    # If no expiry is set, x-ui saves 0 or None. We return "Unlimited".
     if not ms_or_s:
         return "Unlimited"
     try:
         ts = float(ms_or_s)
-        # Double-check if the parsed value is 0
         if ts == 0:
             return "Unlimited"
         # Heuristic: > 9999999999 implies milliseconds
@@ -224,7 +222,8 @@ def usage():
     finally:
         conn.close() # Explicitly close to prevent FD leaks
 
-        try:
+    # FIXED INDENTATION HERE
+    try:
         tg_bot_link = get_setting("tg_bot_link", "")
         return render_template(
             "result.html",
@@ -292,7 +291,6 @@ def server_location():
         
     try:
         # Using HTTP because ip-api.com free tier blocks HTTPS.
-        # This is a server-side request, so HTTP is perfectly safe here.
         r = requests.get("http://ip-api.com/json/", timeout=REQUEST_TIMEOUT)
         data = r.json() if r.ok else {}
         result = {
@@ -300,7 +298,6 @@ def server_location():
             "city": data.get("city", "Unknown"),
             "ip": data.get("query", "Unknown"),
         }
-        # Save to cache
         _loc_cache["data"] = result
         _loc_cache["t"] = now
         return jsonify(result)
@@ -316,7 +313,6 @@ def cloud_provider():
         provider = "Unknown"
         vendor = ""
         
-        # Some VPS/Containers don't populate sys_vendor, so we check multiple files
         paths = [
             "/sys/class/dmi/id/sys_vendor",
             "/sys/class/dmi/id/product_name",
@@ -390,11 +386,9 @@ def net_connections():
     """
     now = time.time()
     
-    # Return cached data if called within 2 seconds
     if now - _nethogs_cache["t"] < 2.0 and _nethogs_cache["data"] is not None:
         return jsonify(_nethogs_cache["data"])
         
-    # Prevent concurrent spawns of nethogs
     if not _nethogs_lock.acquire(blocking=False):
         return jsonify({"available": False, "message": "Busy collecting data. Try again in a moment."}), 429
         
