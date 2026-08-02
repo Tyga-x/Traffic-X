@@ -19,9 +19,14 @@ from typing import Any, Dict, Optional, Union
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from tx_telegram import tg_bp, start_notifier, get_setting, set_setting
+from tx_telegram import tg_bp, start_notifier
+from tx_admin import admin_bp
 
 app = Flask(__name__)
+
+app.secret_key = "traffic-x-secret-key-2024" # Required for admin login sessions
 app.register_blueprint(tg_bp)
+app.register_blueprint(admin_bp)
 
 # Start the Telegram Notification Background Engine
 start_notifier(app)
