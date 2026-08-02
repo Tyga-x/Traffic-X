@@ -38,6 +38,7 @@ def admin_dashboard():
     bot_token = get_setting("bot_token", "")
     renew_link = get_setting("renew_link", "")
     current_theme = get_setting("theme", "dark")
+    admin_chat_id = get_setting("admin_chat_id", "")
     
     # Get linked users
     conn = sqlite3.connect(TX_DB_PATH)
