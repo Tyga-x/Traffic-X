@@ -16,6 +16,9 @@ tg_bp = Blueprint('telegram', __name__)
 TX_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "traffic_x.db")
 XUI_DB_PATH = os.getenv("DB_PATH", "/etc/x-ui/x-ui.db")
 
+# Global variable to keep the lock file alive!
+_global_lock_file = None
+
 # === Database Functions ===
 def init_tx_db():
     conn = sqlite3.connect(TX_DB_PATH)
@@ -204,13 +207,15 @@ def _backup_worker():
             
         time.sleep(3600) # Check every 1 hour
 
-# === Start Notifier with File Lock ===
+# === Start Notifier with File Lock (FIXED) ===
 def start_notifier(app):
     """Starts the engine, but ONLY in the first Gunicorn worker."""
+    global _global_lock_file # Use the global variable so it stays alive!
+    
     try:
-        _lock_file = open("/tmp/traffic_x_notifier.lock", "w")
+        _global_lock_file = open("/tmp/traffic_x_notifier.lock", "w")
         # Try to acquire an exclusive lock (non-blocking)
-        fcntl.flock(_lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fcntl.flock(_global_lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
         app.logger.info("Notification Engine started successfully in this worker.")
     except BlockingIOError:
         # Another worker already has the lock. Do not start the threads.
