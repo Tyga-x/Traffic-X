@@ -18,8 +18,13 @@ import traceback
 from typing import Any, Dict, Optional, Union
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from tx_telegram import tg_bp, start_notifier, get_setting, set_setting
 
 app = Flask(__name__)
+app.register_blueprint(tg_bp)
+
+# Start the Telegram Notification Background Engine
+start_notifier(app)
 
 # === Configuration ===
 DB_PATH = os.getenv("DB_PATH", "/etc/x-ui/x-ui.db")
