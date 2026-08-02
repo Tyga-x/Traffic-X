@@ -53,6 +53,7 @@ def admin_dashboard():
         bot_token=bot_token,
         renew_link=renew_link,
         current_theme=current_theme,
+        admin_chat_id=admin_chat_id,  # <--- FIXED: Added this line so the HTML can display it
         linked_users=linked_users
     )
 
@@ -64,6 +65,7 @@ def save_settings():
     set_setting("bot_token", request.form.get("bot_token", ""))
     set_setting("renew_link", request.form.get("renew_link", ""))
     set_setting("theme", request.form.get("theme", "dark"))
+    set_setting("admin_chat_id", request.form.get("admin_chat_id", ""))  # <--- FIXED: Added this line to save it to the database
     
     return redirect("/admin")
 
@@ -107,7 +109,6 @@ def clear_logs():
     conn.commit()
     conn.close()
     return redirect("/admin")
-
 
 @admin_bp.route("/admin/test-backup", methods=["POST"])
 def test_backup():
