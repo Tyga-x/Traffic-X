@@ -66,6 +66,10 @@ done
 read -p "Enter the port (default: 5000): " PORT
 PORT=${PORT:-5000}
 
+# -------- Ask for Admin Panel Password --------
+read -p "Set a password for the Admin Panel (default: admin123): " ADMIN_PASS
+ADMIN_PASS=${ADMIN_PASS:-admin123}
+
 # -------- Version --------
 read -p "Enter the version to install (e.g., v1.0.1) or leave blank for latest: " VERSION
 VERSION="${VERSION:-latest}"
@@ -114,6 +118,16 @@ if [ ! -f "$HOME_DIR/Traffic-X/app.py" ]; then
   echo "ERROR: app.py not found in repo."
   exit 1
 fi
+
+# -------- Pre-configure Admin Password --------
+echo "Configuring Admin Panel security..."
+TX_DB="$HOME_DIR/Traffic-X/traffic_x.db"
+# Initialize the database tables and inject the custom admin password before the app starts
+sqlite3 "$TX_DB" "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);"
+sqlite3 "$TX_DB" "INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_password', '$ADMIN_PASS');"
+sqlite3 "$TX_DB" "CREATE TABLE IF NOT EXISTS tg_users (xui_email TEXT PRIMARY KEY, tg_chat_id TEXT);"
+sqlite3 "$TX_DB" "CREATE TABLE IF NOT EXISTS notif_log (xui_email TEXT, type TEXT, last_notified REAL, PRIMARY KEY(xui_email, type));"
+sudo chown "$USERNAME:$USERNAME" "$TX_DB"
 
 # -------- Python venv + deps --------
 echo "Setting up the Python virtual environment..."
@@ -251,6 +265,7 @@ PROTO="http"
 echo "========================================================="
 echo "✅ Installation complete! TRAFFIC - X is Running Now."
 echo "➡️  Access it at: $PROTO://$DOMAIN:$PORT"
+echo "➡️  Admin Panel: $PROTO://$DOMAIN:$PORT/admin"
 [ -z "$SSL_CONTEXT" ] && echo "⚠️ SSL is disabled. (Cert generation failed or not present.)"
 echo "📜 View logs with: sudo journalctl -u traffic-x -f"
 echo "========================================================="
