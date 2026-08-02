@@ -256,50 +256,84 @@ def server_status():
 @app.route("/server-location")
 @limiter.limit("30 per minute")
 def server_location():
-    """Geo/IP using ip-api.com over HTTPS (cached for 1 hour)."""
+    """Geo/IP using ip-api.com (cached for 1 hour to prevent rate-limit bans)."""
     now = time.time()
+    # Serve from cache if it's less than 1 hour old
     if now - _loc_cache["t"] < 3600 and _loc_cache["data"]:
         return jsonify(_loc_cache["data"])
         
     try:
-        r = requests.get("https://ip-api.com/json/", timeout=REQUEST_TIMEOUT)
+        # Using HTTP because ip-api.com free tier blocks HTTPS.
+        # This is a server-side request, so HTTP is perfectly safe here.
+        r = requests.get("http://ip-api.com/json/", timeout=REQUEST_TIMEOUT)
         data = r.json() if r.ok else {}
         result = {
             "country": data.get("country", "Unknown"),
             "city": data.get("city", "Unknown"),
             "ip": data.get("query", "Unknown"),
         }
+        # Save to cache
         _loc_cache["data"] = result
         _loc_cache["t"] = now
         return jsonify(result)
     except Exception as e:
         app.logger.error("Server-location failed:\n%s", traceback.format_exc())
-        return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"country": "Unknown", "city": "Unknown", "ip": "Unknown"}), 200
 
 @app.route("/cloud-provider")
 @limiter.limit("30 per minute")
 def cloud_provider():
-    """Try to infer cloud provider from DMI sys_vendor."""
+    """Try to infer cloud provider from DMI sys_vendor with multiple fallbacks."""
     try:
         provider = "Unknown"
-        path = "/sys/class/dmi/id/sys_vendor"
-        if os.path.exists(path):
-            with open(path, "r", encoding="utf-8", errors="ignore") as f:
-                vendor = f.read().strip().lower()
-            if "amazon" in vendor:
-                provider = "AWS"
-            elif "digital" in vendor:
-                provider = "DigitalOcean"
-            elif "linode" in vendor:
-                provider = "Linode"
-            elif "google" in vendor:
-                provider = "Google Cloud"
-            elif "microsoft" in vendor or "azure" in vendor:
-                provider = "Azure"
+        vendor = ""
+        
+        # Some VPS/Containers don't populate sys_vendor, so we check multiple files
+        paths = [
+            "/sys/class/dmi/id/sys_vendor",
+            "/sys/class/dmi/id/product_name",
+            "/sys/class/dmi/id/board_vendor",
+            "/sys/class/dmi/id/bios_vendor"
+        ]
+        
+        for path in paths:
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                    vendor = f.read().strip().lower()
+                if vendor:
+                    break
+                    
+        if "amazon" in vendor or "ec2" in vendor:
+            provider = "AWS"
+        elif "digital" in vendor or "do droplet" in vendor:
+            provider = "DigitalOcean"
+        elif "linode" in vendor:
+            provider = "Linode"
+        elif "google" in vendor or "gce" in vendor:
+            provider = "Google Cloud"
+        elif "microsoft" in vendor or "azure" in vendor:
+            provider = "Azure"
+        elif "ovh" in vendor:
+            provider = "OVH"
+        elif "hetzner" in vendor:
+            provider = "Hetzner"
+        elif "vultr" in vendor:
+            provider = "Vultr"
+        elif "vmware" in vendor:
+            provider = "VMware"
+        elif "xen" in vendor:
+            provider = "Xen"
+        elif "kvm" in vendor:
+            provider = "KVM"
+        elif "openvz" in vendor or "virtuozzo" in vendor:
+            provider = "OpenVZ"
+        elif "lxc" in vendor:
+            provider = "LXC"
+            
         return jsonify({"provider": provider})
     except Exception as e:
         app.logger.error("Cloud-provider failed:\n%s", traceback.format_exc())
-        return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"provider": "Unknown"}), 200
 
 @app.route("/net-live")
 @limiter.limit("60 per minute")
