@@ -39,6 +39,7 @@ def admin_dashboard():
     renew_link = get_setting("renew_link", "")
     current_theme = get_setting("theme", "dark")
     admin_chat_id = get_setting("admin_chat_id", "")
+    tg_bot_link = get_setting("tg_bot_link", "")
     
     # Get linked users
     conn = sqlite3.connect(TX_DB_PATH)
@@ -53,7 +54,8 @@ def admin_dashboard():
         bot_token=bot_token,
         renew_link=renew_link,
         current_theme=current_theme,
-        admin_chat_id=admin_chat_id,  # <--- FIXED: Added this line so the HTML can display it
+        admin_chat_id=admin_chat_id,
+        tg_bot_link=tg_bot_link, 
         linked_users=linked_users
     )
 
