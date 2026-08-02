@@ -6,6 +6,21 @@
 <title>TRAFFIC-X</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
+
+{% if tg_bot_link %}
+<div style="background: linear-gradient(135deg, #0a84ff 0%, #5e5ce6 100%); padding: 16px; border-radius: 16px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);">
+    <div style="flex: 1;">
+        <strong style="color: #fff; font-size: 16px; display: block;">🔔 Get Auto-Renew Alerts!</strong>
+        <p style="color: rgba(255,255,255,0.8); font-size: 13px; margin: 4px 0 0;">Never let your VPN expire. Start our Telegram Bot.</p>
+    </div>
+    <a href="{{ tg_bot_link }}" target="_blank" style="background: #fff; color: #0a84ff; padding: 10px 16px; border-radius: 12px; text-decoration: none; font-weight: 700; white-space: nowrap; transition: transform 0.2s;">
+        Start Bot
+    </a>
+</div>
+{% endif %}
+
+
+  
 /* ===== iOS BASE ===== */
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{
