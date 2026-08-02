@@ -1,8 +1,9 @@
 # tx_admin.py
 import sqlite3
 import os
+import time
 from flask import Blueprint, render_template, request, redirect, url_for, session
-from tx_telegram import get_setting, set_setting, TX_DB_PATH
+from tx_telegram import get_setting, set_setting, TX_DB_PATH, send_backup_document
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -104,4 +105,40 @@ def clear_logs():
     c.execute("DELETE FROM notif_log")
     conn.commit()
     conn.close()
+    return redirect("/admin")
+
+
+@admin_bp.route("/admin/test-backup", methods=["POST"])
+def test_backup():
+    if not is_logged_in():
+        return redirect("/admin/login")
+    success, msg = send_backup_document()
+    # In a real app you might flash a message, here we just redirect back
+    return redirect("/admin")
+
+@admin_bp.route("/admin/upload-db", methods=["POST"])
+def upload_db():
+    if not is_logged_in():
+        return redirect("/admin/login")
+        
+    if 'db_file' not in request.files:
+        return redirect("/admin")
+        
+    file = request.files['db_file']
+    if file.filename == '':
+        return redirect("/admin")
+        
+    if file:
+        # Save the uploaded file temporarily
+        temp_path = TX_DB_PATH + ".tmp"
+        file.save(temp_path)
+        
+        # Replace the old database
+        try:
+            if os.path.exists(TX_DB_PATH):
+                os.remove(TX_DB_PATH)
+            os.rename(temp_path, TX_DB_PATH)
+        except Exception:
+            pass
+            
     return redirect("/admin")
