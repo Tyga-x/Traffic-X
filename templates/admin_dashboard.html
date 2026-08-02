@@ -205,12 +205,7 @@
                     <label for="renew_link">Renewal Info (Sent to users in alerts)</label>
                     <textarea id="renew_link" name="renew_link" placeholder="Type your custom renewal message and links here...">{{ renew_link }}</textarea>
                     
-                    <label for="theme">User UI Theme</label>
-                    <select id="theme" name="theme">
-                        <option value="dark" {% if current_theme == 'dark' %}selected{% endif %}>Dark (iOS)</option>
-                        <option value="light" {% if current_theme == 'light' %}selected{% endif %}>Light</option>
-                        <option value="neon" {% if current_theme == 'neon' %}selected{% endif %}>Neon / Cyberpunk</option>
-                    </select>
+                
                     
                     <button type="submit" class="btn"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
                 </form>
