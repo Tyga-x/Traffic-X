@@ -1,6 +1,7 @@
 import os, json, base64, io
 from urllib.parse import quote, urlencode
 from typing import Any, Dict, Optional
+
 try:
     import qrcode
 except Exception:
@@ -12,9 +13,7 @@ def _jload(x: Any) -> Dict[str, Any]:
     if not x: return {}
     if isinstance(x, dict): return x
     try: return json.loads(x)
-    except Exception:
-        try: return json.loads(str(x).replace("'", '"'))
-        except Exception: return {}
+    except Exception: return {}
 
 def _arr_first(x): 
     return x[0] if isinstance(x, list) and x else x
@@ -133,8 +132,8 @@ def build_vless(client, inbound):
     if net == "xhttp":
         network_host = _get_network_host(stream, "xhttp") or host
         raw_path = _get_network_path(stream, "xhttp") or "/"
-        from urllib.parse import quote
-        double_encoded = quote(quote(raw_path)).toLower if hasattr(str, "toLower") else quote(quote(raw_path)).lower()
+        # Fixed dead code branch
+        double_encoded = quote(quote(raw_path)).lower()
         q = {
             "security":"none","encryption":"", "headerType":"",
             "type":"xhttp", "host":network_host, "path":double_encoded
@@ -265,9 +264,7 @@ def build_trojan(client, inbound):
     elif sec == "reality":
         params["security"] = "reality"; params.update(_gather_reality_params(stream))
 
-    ordered = ["security","sni","alpn","fp","allowInsecure","type","path","host","mode","serviceName","headerType"]
-    tmp = params.copy()
-    kv = [(k, tmp.pop(k)) for k in tmp.copy() if k in tmp]  # preserve order
+    # Cleaned up dead variables, correctly encoding string
     enc = "&".join(f"{quote(str(k))}={quote(str(v))}" for k,v in params.items() if v not in (None,""))
     tag = quote(client.get("email") or inbound.get("remark") or "node")
     return f"trojan://{pwd}@{host}:{port}?{enc}#{tag}"
@@ -284,37 +281,43 @@ def build_ss(client, inbound):
     return f"ss://{userinfo}@{host}:{port}#{tag}"
 
 def build_best(inbound, client):
-    proto = (inbound.get("protocol") or "").lower()
-    out = {
-        "protocol": proto,
-        "vless_link": None,
-        "vmess_link": None,
-        "vmess_json": None,
-        "trojan_link": None,
-        "ss_link": None,
-        "config_text": "",
-        "config_filename": "",
-        "qr_datauri": None
-    }
-    if proto == "vless":
-        link = out["vless_link"] = build_vless(client, inbound)
-        out["config_text"] = link; out["config_filename"] = f"{client.get('email','user')}_vless.txt"
-    elif proto == "vmess":
-        link, vmj = build_vmess(client, inbound)
-        out["vmess_link"] = link; out["vmess_json"] = vmj
-        out["config_text"] = link; out["config_filename"] = f"{client.get('email','user')}_vmess.txt"
-    elif proto == "trojan":
-        link = out["trojan_link"] = build_trojan(client, inbound)
-        out["config_text"] = link; out["config_filename"] = f"{client.get('email','user')}_trojan.txt"
-    elif proto in ("shadowsocks","ss"):
-        link = out["ss_link"] = build_ss(client, inbound)
-        out["config_text"] = link or ""; out["config_filename"] = f"{client.get('email','user')}_ss.txt"
-    else:
-        link = out["vless_link"] = build_vless(client, inbound)
-        out["config_text"] = link; out["config_filename"] = f"{client.get('email','user')}_config.txt"; out["protocol"] = "vless"
-    if out["config_text"] and qrcode:
-        out["qr_datauri"] = _qr_data_uri(out["config_text"])
-    return out
+    # Added top-level safety guard
+    try:
+        proto = (inbound.get("protocol") or "").lower()
+        out = {
+            "protocol": proto,
+            "vless_link": None,
+            "vmess_link": None,
+            "vmess_json": None,
+            "trojan_link": None,
+            "ss_link": None,
+            "config_text": "",
+            "config_filename": "",
+            "qr_datauri": None
+        }
+        if proto == "vless":
+            link = out["vless_link"] = build_vless(client, inbound)
+            out["config_text"] = link; out["config_filename"] = f"{client.get('email','user')}_vless.txt"
+        elif proto == "vmess":
+            link, vmj = build_vmess(client, inbound)
+            out["vmess_link"] = link; out["vmess_json"] = vmj
+            out["config_text"] = link; out["config_filename"] = f"{client.get('email','user')}_vmess.txt"
+        elif proto == "trojan":
+            link = out["trojan_link"] = build_trojan(client, inbound)
+            out["config_text"] = link; out["config_filename"] = f"{client.get('email','user')}_trojan.txt"
+        elif proto in ("shadowsocks","ss"):
+            link = out["ss_link"] = build_ss(client, inbound)
+            out["config_text"] = link or ""; out["config_filename"] = f"{client.get('email','user')}_ss.txt"
+        else:
+            link = out["vless_link"] = build_vless(client, inbound)
+            out["config_text"] = link; out["config_filename"] = f"{client.get('email','user')}_config.txt"; out["protocol"] = "vless"
+            
+        if out["config_text"] and qrcode:
+            out["qr_datauri"] = _qr_data_uri(out["config_text"])
+        return out
+    except Exception:
+        # Safely returns None on any parsing error to prevent entire app crash
+        return None
 
 def build_links(client, inbound):
     return build_best(inbound, client)
