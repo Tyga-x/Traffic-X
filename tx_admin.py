@@ -94,3 +94,14 @@ def delete_link(email):
     conn.close()
     
     return redirect("/admin")
+
+@admin_bp.route("/admin/clear-logs", methods=["POST"])
+def clear_logs():
+    if not is_logged_in():
+        return redirect("/admin/login")
+    conn = sqlite3.connect(TX_DB_PATH)
+    c = conn.cursor()
+    c.execute("DELETE FROM notif_log")
+    conn.commit()
+    conn.close()
+    return redirect("/admin")
