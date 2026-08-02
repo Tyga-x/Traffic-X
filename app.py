@@ -57,11 +57,15 @@ def get_db() -> sqlite3.Connection:
     return conn
 
 def parse_expiry(ms_or_s: Optional[Union[int, float]]) -> str:
-    """Accepts ms or s epoch; returns UTC ISO-like string or 'Invalid Date'."""
-    if ms_or_s is None:
-        return "Invalid Date"
+    """Accepts ms or s epoch; returns UTC ISO-like string, 'Unlimited' or 'Invalid Date'."""
+    # If no expiry is set, x-ui saves 0 or None. We return "Unlimited".
+    if not ms_or_s:
+        return "Unlimited"
     try:
         ts = float(ms_or_s)
+        # Double-check if the parsed value is 0
+        if ts == 0:
+            return "Unlimited"
         # Heuristic: > 9999999999 implies milliseconds
         if ts > 9_999_999_999:
             ts = ts / 1000.0
@@ -180,7 +184,7 @@ def usage():
         total = convert_bytes(row["total"])
         expiry_date = parse_expiry(row["expiry_time"])
 
-        totalGB = "Not Available"
+        totalGB = "Unlimited"
         user_status = "Disabled"
 
         cur.execute("SELECT settings FROM inbounds WHERE id = ?", (row["inbound_id"],))
@@ -189,7 +193,13 @@ def usage():
             inbound_data = _safe_json_loads(inbound_row["settings"])
             for client in inbound_data.get("clients", []):
                 if client.get("email") == email:
-                    totalGB = convert_bytes(client.get("totalGB", "Not Available"))
+                    # x-ui saves 0 for totalGB if it's unlimited
+                    gb_val = client.get("totalGB", 0)
+                    if gb_val == 0 or gb_val == "0":
+                        totalGB = "Unlimited"
+                    else:
+                        totalGB = convert_bytes(gb_val)
+                        
                     user_status = "Enabled" if client.get("enable", True) else "Disabled"
                     break
     except Exception as e:
