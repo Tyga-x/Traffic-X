@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traffic-X</title>
+    <title>Admin Panel - Traffic-X</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
@@ -176,6 +176,40 @@
             .stat-card { padding: 24px; }
             .stat-value { font-size: 28px; }
         }
+
+        /* Mobile Table Card View */
+        @media (max-width: 768px) {
+            .card { overflow: hidden; }
+            table { width: 100%; border: none; }
+            table thead { display: none; }
+            table tr { 
+                display: block; 
+                margin-bottom: 20px; 
+                border: 1px solid var(--glass-border); 
+                border-radius: 16px; 
+                padding: 8px 16px; 
+                background: rgba(0,0,0,0.2); 
+            }
+            table tr:last-child { margin-bottom: 0; }
+            table td { 
+                display: flex; 
+                justify-content: space-between; 
+                align-items: center; 
+                text-align: right !important; 
+                border-bottom: 1px solid rgba(255,255,255,0.05); 
+                padding: 12px 0; 
+            }
+            table td:last-child { border-bottom: 0; }
+            table td::before { 
+                content: attr(data-label); 
+                font-weight: 700; 
+                color: var(--text-secondary); 
+                text-align: left; 
+                padding-right: 16px; 
+                font-size: 12px;
+                text-transform: uppercase;
+            }
+        }
     </style>
 </head>
 <body>
@@ -246,9 +280,9 @@
                             <tbody>
                                 {% for u in tg_users_status %}
                                 <tr>
-                                    <td style="font-weight: 500;">{{ u.email }}</td>
-                                    <td style="color: #8e8e93; font-family: monospace;">{{ u.chat_id }}</td>
-                                    <td style="text-align: right;">
+                                    <td data-label="Email" style="font-weight: 500;">{{ u.email }}</td>
+                                    <td data-label="Chat ID" style="color: #8e8e93; font-family: monospace;">{{ u.chat_id }}</td>
+                                    <td data-label="Status" style="text-align: right;">
                                         {% if u.color == 'green' %}
                                             <span style="background: rgba(48, 209, 88, 0.15); color: #30d158; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; text-transform: uppercase;">
                                                 <i class="fa-solid fa-circle" style="font-size: 7px; margin-right: 6px;"></i>{{ u.status }}
@@ -348,9 +382,9 @@
                     <tbody>
                         {% for user in linked_users %}
                         <tr>
-                            <td>{{ user.xui_email }}</td>
-                            <td style="font-family: monospace; color:#8e8e93;">{{ user.tg_chat_id }}</td>
-                            <td style="text-align: right;">
+                            <td data-label="Email">{{ user.xui_email }}</td>
+                            <td data-label="Chat ID" style="font-family: monospace; color:#8e8e93;">{{ user.tg_chat_id }}</td>
+                            <td data-label="Action" style="text-align: right;">
                                 <form method="POST" action="/admin/delete-link/{{ user.xui_email }}">
                                     <button type="submit" class="btn btn-sm"><i class="fa-solid fa-xmark"></i> Delete</button>
                                 </form>
