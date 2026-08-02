@@ -38,6 +38,9 @@
                 <label for="bot_token">Telegram Bot Token</label>
                 <input type="text" id="bot_token" name="bot_token" value="{{ bot_token }}" placeholder="123456:ABC-DEF...">
                 
+                <label for="admin_chat_id">Admin Telegram Chat ID (For Backups)</label>
+                <input type="text" id="admin_chat_id" name="admin_chat_id" value="{{ admin_chat_id }}" placeholder="e.g., 123456789">
+
                 <label for="renew_link">Renewal Link (Sent to users)</label>
                 <input type="text" id="renew_link" name="renew_link" value="{{ renew_link }}" placeholder="https://t.me/YourAdmin">
                 
@@ -61,7 +64,6 @@
                 <button type="submit" class="btn">Add Link</button>
             </form>
 
-            <!-- Clear Logs Button (Correctly Placed) -->
             <div style="margin-bottom: 16px; text-align: right;">
                 <form method="POST" action="/admin/clear-logs" onsubmit="return confirm('Clear notification memory?');">
                     <button type="submit" class="btn" style="background: #ff9f0a; padding: 8px 16px; font-size: 14px;">Clear Logs</button>
@@ -94,6 +96,26 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+
+        <!-- Backup & Restore Card -->
+        <div class="card">
+            <h2>Backup & Restore</h2>
+            <p style="color: #8e8e93; font-size: 14px; margin-bottom: 16px;">
+                The database is automatically sent to your Admin Chat ID every 24 hours. 
+                You can test it now, or upload an old backup to restore your settings on a new VPS.
+            </p>
+            
+            <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
+                <form method="POST" action="/admin/test-backup">
+                    <button type="submit" class="btn" style="background: #30d158;">Test Backup Now</button>
+                </form>
+                
+                <form method="POST" action="/admin/upload-db" enctype="multipart/form-data" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <input type="file" name="db_file" accept=".db" required style="margin-top: 0; background: transparent; border: 1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: 12px; width: auto;">
+                    <button type="submit" class="btn" style="background: #ff9f0a; margin-top: 0;">Upload & Restore</button>
+                </form>
+            </div>
         </div>
     </div>
 </body>
