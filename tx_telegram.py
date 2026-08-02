@@ -4,13 +4,15 @@ import time
 import threading
 import requests
 import traceback
+import fcntl
+import os
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timezone
 
-# Create a Flask Blueprint for Telegram routes (we still need it for admin)
+# Create a Flask Blueprint for Telegram routes
 tg_bp = Blueprint('telegram', __name__)
 
-import os
+# Database paths
 TX_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "traffic_x.db")
 XUI_DB_PATH = os.getenv("DB_PATH", "/etc/x-ui/x-ui.db")
 
@@ -57,7 +59,6 @@ def _polling_worker():
             url = f"https://api.telegram.org/bot{bot_token}/getUpdates"
             params = {"timeout": 10, "offset": offset}
             
-            # Ask Telegram for new messages (waits up to 10 seconds)
             r = requests.post(url, json=params, timeout=15)
             data = r.json()
             
@@ -81,7 +82,7 @@ def _polling_worker():
                                 "parse_mode": "HTML"
                             })
         except Exception:
-            pass # Ignore timeouts and network blips, just try again
+            pass
             
         time.sleep(1)
 
@@ -95,7 +96,7 @@ def _notification_worker():
             renew_link = get_setting("renew_link", "https://t.me/your_admin")
             
             if not bot_token:
-                time.sleep(600) # Sleep 10 mins if bot isn't configured
+                time.sleep(600)
                 continue
                 
             now = time.time()
@@ -153,13 +154,25 @@ def _notification_worker():
                             tx_conn.commit()
 
             tx_conn.close()
-        except Exception as e:
-            pass # Log error silently to prevent thread crash
+        except Exception:
+            pass
             
         time.sleep(3600) # Run every 1 hour
 
+# === Start Notifier with File Lock ===
 def start_notifier(app):
-    """Starts both the message receiver and the notification engine"""
+    """Starts the engine, but ONLY in the first Gunicorn worker."""
+    try:
+        _lock_file = open("/tmp/traffic_x_notifier.lock", "w")
+        # Try to acquire an exclusive lock (non-blocking)
+        fcntl.flock(_lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        app.logger.info("Notification Engine started successfully in this worker.")
+    except BlockingIOError:
+        # Another worker already has the lock. Do not start the threads.
+        app.logger.info("Notification Engine already running in another worker. Skipping.")
+        return
+
+    # We got the lock! Start the threads.
     t1 = threading.Thread(target=_polling_worker, daemon=True)
     t1.start()
     
