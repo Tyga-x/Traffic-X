@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Traffic-X</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #000; color: #f5f5f7; padding: 40px 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { font-size: 32px; margin-bottom: 32px; text-align: center; }
+        h2 { font-size: 20px; margin-bottom: 16px; color: #0a84ff; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; }
+        .card { background: rgba(28, 28, 30, 0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 24px; margin-bottom: 32px; }
+        label { display: block; font-size: 14px; color: #8e8e93; margin-bottom: 8px; margin-top: 16px; }
+        input, select { width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #fff; font-size: 16px; outline: none; }
+        input:focus, select:focus { border-color: #0a84ff; }
+        .btn { display: inline-block; margin-top: 20px; padding: 12px 24px; background: #0a84ff; color: #fff; text-decoration: none; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; transition: 0.2s; }
+        .btn:active { transform: scale(0.97); }
+        .btn-sm { padding: 6px 12px; background: #ff453a; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        th { color: #8e8e93; font-weight: 600; }
+        .header-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .logout { color: #ff453a; text-decoration: none; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-nav">
+            <h1>Traffic-X Admin</h1>
+            <a href="/admin/logout" class="logout">Logout</a>
+        </div>
+
+        <!-- Settings Card -->
+        <div class="card">
+            <h2>System Settings</h2>
+            <form method="POST" action="/admin/save-settings">
+                <label for="bot_token">Telegram Bot Token</label>
+                <input type="text" id="bot_token" name="bot_token" value="{{ bot_token }}" placeholder="123456:ABC-DEF...">
+                
+                <label for="renew_link">Renewal Link (Sent to users)</label>
+                <input type="text" id="renew_link" name="renew_link" value="{{ renew_link }}" placeholder="https://t.me/YourAdmin">
+                
+                <label for="theme">User UI Theme</label>
+                <select id="theme" name="theme">
+                    <option value="dark" {% if current_theme == 'dark' %}selected{% endif %}>Dark (iOS)</option>
+                    <option value="light" {% if current_theme == 'light' %}selected{% endif %}>Light</option>
+                    <option value="neon" {% if current_theme == 'neon' %}selected{% endif %}>Neon / Cyberpunk</option>
+                </select>
+                
+                <button type="submit" class="btn">Save Settings</button>
+            </form>
+        </div>
+
+        <!-- User Linking Card -->
+        <div class="card">
+            <h2>Link Telegram Users</h2>
+            <form method="POST" action="/admin/link-user" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <input type="text" name="xui_email" placeholder="x-ui Email (e.g., test@xui.com)" style="flex: 2; min-width: 200px;" required>
+                <input type="text" name="tg_chat_id" placeholder="Telegram Chat ID" style="flex: 1; min-width: 100px;" required>
+                <button type="submit" class="btn">Add Link</button>
+            </form>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>X-UI Email</th>
+                        <th>Telegram Chat ID</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in linked_users %}
+                    <tr>
+                        <td>{{ user.xui_email }}</td>
+                        <td>{{ user.tg_chat_id }}</td>
+                        <td>
+                            <form method="POST" action="/admin/delete-link/{{ user.xui_email }}">
+                                <button type="submit" class="btn btn-sm">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: #8e8e93;">No users linked yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
