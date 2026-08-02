@@ -127,7 +127,7 @@ else
   sudo -u "$USERNAME" venv/bin/pip install "flask==2.2.5" "werkzeug==2.2.3" gunicorn psutil requests
 fi
 
-# -------- SSL setup --------
+# -------- SSL setup (Robust with Let's Encrypt + ZeroSSL fallback) --------
 SSL_CONTEXT=""
 CERT_DIR="/var/lib/Traffic-X/certs"
 sudo mkdir -p "$CERT_DIR"
@@ -145,7 +145,9 @@ else
         ACME="/root/.acme.sh/acme.sh"
     fi
 
-    "$ACME" --set-default-ca --server letsencrypt || true
+    # Register accounts to be safe
+    "$ACME" --register-account -m "$USERNAME@$DOMAIN" --server letsencrypt || true
+    "$ACME" --register-account -m "$USERNAME@$DOMAIN" --server zerossl || true
 
     if command -v ufw >/dev/null 2>&1; then
         sudo ufw allow 80/tcp || true
@@ -157,16 +159,28 @@ else
     sudo systemctl stop apache2 2>/dev/null || true
 
     ISSUE_OK=0
+
+    # Attempt 1: Let's Encrypt (HTTP-01)
+    echo "Trying Let's Encrypt (HTTP-01)..."
     if "$ACME" --issue --force --standalone -d "$DOMAIN" \
         --fullchain-file "$CERT_DIR/$DOMAIN.cer" \
-        --key-file "$CERT_DIR/$DOMAIN.cer.key"; then
+        --key-file "$CERT_DIR/$DOMAIN.cer.key" --server letsencrypt; then
         ISSUE_OK=1
     else
-        echo "HTTP-01 failed, retrying with ALPN on :443..."
-        if "$ACME" --issue --force --alpn -d "$DOMAIN" \
+        # Attempt 2: ZeroSSL (HTTP-01) - Fallback to avoid Let's Encrypt rate limits
+        echo "Let's Encrypt failed or rate limited. Trying ZeroSSL (HTTP-01)..."
+        if "$ACME" --issue --force --standalone -d "$DOMAIN" \
             --fullchain-file "$CERT_DIR/$DOMAIN.cer" \
-            --key-file "$CERT_DIR/$DOMAIN.cer.key"; then
+            --key-file "$CERT_DIR/$DOMAIN.cer.key" --server zerossl; then
             ISSUE_OK=1
+        else
+            # Attempt 3: ZeroSSL (ALPN) - Final fallback
+            echo "HTTP-01 failed, retrying with ALPN on :443 via ZeroSSL..."
+            if "$ACME" --issue --force --alpn -d "$DOMAIN" \
+                --fullchain-file "$CERT_DIR/$DOMAIN.cer" \
+                --key-file "$CERT_DIR/$DOMAIN.cer.key" --server zerossl; then
+                ISSUE_OK=1
+            fi
         fi
     fi
 
