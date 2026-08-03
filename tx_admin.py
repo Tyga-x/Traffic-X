@@ -44,7 +44,7 @@ def admin_dashboard():
     
     # Pagination Params
     page = request.args.get('page', 1, type=int)
-    per_page = 20
+    per_page = 10
     active_tab = request.args.get('tab', 'overview')
     
     # Get current settings
